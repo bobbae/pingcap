@@ -1,5 +1,4 @@
-pingscan
-=======
+### pingscan
 
 A tool to discover machines via ping and packet capture.
 
@@ -42,8 +41,7 @@ Example output:
 
 
 
-IEEE OUI
-===========
+### IEEE OUI
 
 the ieee-out.txt file was originally from http://standards.ieee.org/develop/regauth/oui/oui.txt
 
@@ -53,4 +51,44 @@ Instead the nmap project has compatible format file which has updated latest fil
 http://linuxnet.ca/ieee/oui/nmap-mac-prefixes
 
 which can be used as ieee-oui.txt
+
+### Running on Linux:
+
+```
+sudo go run pingscan/main.go -cidr 10.0.2.0/24 -dev eth0 -timeout 10 -ouifile pingscan/ieee-oui.txt
+```
+
+### Building docker image
+
+First build a statically linked pingscan.
+
+```
+cd pingscan
+make
+```
+
+Then docker build.
+
+
+```
+docker build -t pingscan .
+```
+
+### Testing using docker image
+
+First run a few docker containers which will be found when you run pingscan. 
+
+```
+docker run --rm alpine sleep 100 &
+docker run --rm alpine sleep 100 &
+docker run --rm alpine sleep 100 &
+docker run --rm alpine sleep 100 &
+```
+
+Then run pingscan
+
+```
+docker run --rm pingscan
+```
+
 
