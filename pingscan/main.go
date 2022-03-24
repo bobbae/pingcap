@@ -5,7 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/bobbae/glog"
-	"github.com/bobbae/pingscan"
+	//"github.com/bobbae/pingscan"
+	"pingscan"
 	"os"
 	"time"
 )

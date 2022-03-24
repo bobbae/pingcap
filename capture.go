@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/miekg/pcap"
-	"github.com/poofyleek/glog"
+	"github.com/bobbae/glog"
 	"io/ioutil"
 	"net"
 	"os"
