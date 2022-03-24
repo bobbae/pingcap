@@ -1,0 +1,31 @@
+services:
+  network-example-service:
+    image: alpine:latest
+    networks: 
+      - my-shared-network
+    command: sleep 100
+  another-service-in-the-same-network:
+    image: alpine:latest
+    networks: 
+      - my-shared-network
+    command: sleep 100
+  another-service-in-its-own-network:
+    image: alpine:latest
+    networks: 
+      - my-private-network
+    command: sleep 100
+  pingscan-shared:
+    image: pingscan
+    environment:
+      - CIDR=172.18.0.0/24 
+    networks:
+      - my-shared-network
+  pingscan-private:
+    image: pingscan
+    environment:
+      - CIDR=172.19.0.0/24 
+    networks:
+      - my-private-network
+networks:
+  my-shared-network: {}
+  my-private-network: {}

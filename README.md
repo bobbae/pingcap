@@ -91,4 +91,16 @@ Then run pingscan
 docker run --rm pingscan
 ```
 
+### Testing using docker-compose
+
+```
+docker-compose up
+```
+
+The details in docker-compose.yml file.
+
+It creates two networks.  Puts two alpine nodes in one network. One more in another. 
+Then one pingscan is put in one of the networks and another pingscan in another.
+The first pingscan will find two nodes. The second one will find one.
+
 
