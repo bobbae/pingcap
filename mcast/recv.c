@@ -104,6 +104,7 @@ int main(int argc, char *argv[])
     while (1) {
         char msgbuf[MSGBUFSIZE];
         int addrlen = sizeof(addr);
+	printf("receiving\n");
         int nbytes = recvfrom(
             fd,
             msgbuf,
@@ -117,7 +118,7 @@ int main(int argc, char *argv[])
             return 1;
         }
         msgbuf[nbytes] = '\0';
-        puts(msgbuf);
+	printf("received %s\n",msgbuf);
      }
 
 #ifdef _WIN32

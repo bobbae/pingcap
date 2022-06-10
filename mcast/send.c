@@ -87,6 +87,7 @@ int main(int argc, char *argv[])
             perror("sendto");
             return 1;
         }
+	printf("sent\n");
 
      #ifdef _WIN32
           Sleep(delay_secs * 1000); // Windows Sleep is milliseconds
