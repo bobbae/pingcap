@@ -1,17 +1,6 @@
-//
-// Simple listener.c program for UDP multicast
-//
-// Adapted from:
-// http://ntrg.cs.tcd.ie/undergrad/4ba2/multicast/antony/example.html
-//
-// Changes:
-// * Compiles for Windows as well as Linux
-// * Takes the port and group on the command line
-//
-
 #ifdef _WIN32
-    #include <Winsock2.h> // before Windows.h, else Winsock 1 conflict
-    #include <Ws2tcpip.h> // needed for ip_mreq definition for multicast
+    #include <Winsock2.h> 
+    #include <Ws2tcpip.h>
     #include <Windows.h>
 #else
     #include <sys/types.h>
@@ -35,14 +24,11 @@ int main(int argc, char *argv[])
        return 1;
     }
 
-    char* group = argv[1]; // e.g. 239.255.255.250 for SSDP
-    int port = atoi(argv[2]); // 0 if error, which is an invalid port
+    char* group = argv[1]; 
+    int port = atoi(argv[2]); 
 
 
 #ifdef _WIN32
-    //
-    // Initialize Windows Socket API with given VERSION.
-    //
     WSADATA wsaData;
     if (WSAStartup(0x0101, &wsaData)) {
         perror("WSAStartup");
@@ -50,16 +36,12 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    // create what looks like an ordinary UDP socket
-    //
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) {
         perror("socket");
         return 1;
     }
 
-    // allow multiple sockets to use the same PORT number
-    //
     u_int yes = 1;
     if (
         setsockopt(
@@ -70,23 +52,17 @@ int main(int argc, char *argv[])
        return 1;
     }
 
-        // set up destination address
-    //
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY); // differs from sender
+    addr.sin_addr.s_addr = htonl(INADDR_ANY); 
     addr.sin_port = htons(port);
 
-    // bind to receive address
-    //
     if (bind(fd, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
         perror("bind");
         return 1;
     }
 
-    // use setsockopt() to request that the kernel join a multicast group
-    //
     struct ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr(group);
     mreq.imr_interface.s_addr = htonl(INADDR_ANY);
@@ -99,8 +75,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // now just enter a read-print loop
-    //
     while (1) {
         char msgbuf[MSGBUFSIZE];
         int addrlen = sizeof(addr);
@@ -122,12 +96,6 @@ int main(int argc, char *argv[])
      }
 
 #ifdef _WIN32
-    //
-    // Program never actually gets here due to infinite loop that has to be
-    // canceled, but since people on the internet wind up using examples
-    // they find at random in their own code it's good to show what shutting
-    // down cleanly would look like.
-    //
     WSACleanup();
 #endif
 

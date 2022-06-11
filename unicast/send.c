@@ -17,13 +17,12 @@
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
-       printf("Command line args should be multicast group and port\n");
-       printf("(e.g. for SSDP, `sender 239.255.255.250 1900`)\n");
+       printf("port and target-ip required\n");
        return 1;
     }
 
-    char* group = argv[1]; 
-    int port = atoi(argv[2]); 
+    int port = atoi(argv[1]); 
+    char* targetip = argv[2]; 
 
     const int delay_secs = 1;
     const char *message = "Hello, World!";
@@ -41,11 +40,13 @@ int main(int argc, char *argv[])
         perror("socket");
         return 1;
     }
+    int yes = 1;
+    setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &yes, sizeof(yes));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(group);
+    addr.sin_addr.s_addr = inet_addr(targetip);
     addr.sin_port = htons(port);
 
     while (1) {
