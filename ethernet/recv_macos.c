@@ -226,6 +226,8 @@ int main(void)
     size_t testdata_len = 453;
     int bpf;
     int buf_len;
+
+    printf("using %s\n", interface);
     bpf = open_dev();
     assoc_dev(bpf, interface);
     buf_len = get_buf_len(bpf);
