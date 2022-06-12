@@ -95,7 +95,7 @@ int main()
 	char errbuf[PCAP_ERRBUF_SIZE];
 	u_int netmask;
 	//char packet_filter[] = "ip and udp";
-	char packet_filter[] = "ether proto 0xdcac";
+	char packet_filter[] = "ether proto 0xaaaa";
 	struct bpf_program fcode;
 	
 	printf("starting\n");
@@ -166,13 +166,12 @@ int main()
 		return -1;
 	}
 	
+	netmask=0xffffff; 
+#if 0
 	if(d->addresses != NULL)
 		/* Retrieve the mask of the first address of the interface */
 		netmask=((struct sockaddr_in *)(d->addresses->netmask))->sin_addr.S_un.S_addr;
-	else
-		/* If the interface is without addresses we suppose to be in a C class network */
-		netmask=0xffffff; 
-
+#endif
 
 	//compile the filter
 	if (pcap_compile(adhandle, &fcode, packet_filter, 1, netmask) <0 )
@@ -192,7 +191,7 @@ int main()
 		return -1;
 	}
 	
-	printf("\nlistening on %s...\n", d->description);
+	printf("\nlistening on %s...\n", d->name);
 	
 	/* At this point, we don't need any more the device list. Free it */
 	pcap_freealldevs(alldevs);
@@ -219,7 +218,7 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	/*
 	 * unused parameter
 	 */
-	(VOID)(param);
+	//(VOID)(param);
 
 	/* convert the timestamp to readable format */
 	local_tv_sec = header->ts.tv_sec;

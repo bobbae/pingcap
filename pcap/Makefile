@@ -1,5 +1,11 @@
 default: 
 
+capture: capture.c
+	gcc -o capture capture.c -lpcap
+
+sendpack: sendpack.c
+	gcc -o sendpack sendpack.c -lpcap
+
 capture.exe: capture.c
 	gcc -I C:/WpdPack/Include capture.c -o capture -L C:/Win10pcap/x64 -lwpcap -lws2_32
  
