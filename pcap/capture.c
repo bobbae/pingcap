@@ -221,12 +221,13 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	//(VOID)(param);
 
 	/* convert the timestamp to readable format */
-	local_tv_sec = header->ts.tv_sec;
-	ltime=localtime(&local_tv_sec);
-	strftime( timestr, sizeof timestr, "%H:%M:%S", ltime);
+	//local_tv_sec = header->ts.tv_sec;
+	//ltime=localtime(&local_tv_sec);
+	//strftime( timestr, sizeof timestr, "%H:%M:%S", ltime);
 
 	/* print timestamp and length of the packet */
-	printf("%s.%.6d len:%d ", timestr, header->ts.tv_usec, header->len);
+	//printf("%s.%.6d len:%d ", timestr, header->ts.tv_usec, header->len);
+	printf("len %d ", header->len);
 
 	eth_hdr = (ethernet_header *) pkt_data;
 	printf("[%x:%x:%x:%x:%x:%x -> %x:%x:%x:%x:%x:%x (%x)] ",
