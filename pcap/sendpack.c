@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 			 errbuf			// error buffer
 		 )) == NULL)
 	{
-		fprintf(stderr,"\nUnable to open the adapter. %s is not supported by WinPcap\n");
+		fprintf(stderr,"\nUnable to open %s\n",d->name);
 		/* Free the device list */
 		pcap_freealldevs(alldevs);
 		return -1;
@@ -93,45 +93,51 @@ int main(int argc, char **argv)
 		return -1;
 	}
 	
-	/* Supposing to be on ethernet, set mac destination to 1:1:1:1:1:1 */
-	packet[0]=1;
-	packet[1]=1;
-	packet[2]=1;
-	packet[3]=1;
-	packet[4]=1;
-	packet[5]=1;
+	/* set mac destination */
+	packet[0]=0x01;
+	packet[1]=0x00;
+	packet[2]=0x5e;
+	packet[3]=0xaa;
+	packet[4]=0xaa;
+	packet[5]=0xaa;
+	printf("using destination ethernet address: %x:%x:%x:%x:%x:%x\n",
+			packet[0], packet[1], packet[2], packet[3], packet[4],packet[5]);
 	
-	/* set mac source to 2:2:2:2:2:2 */
-	packet[6]=0x34;
-	packet[7]=0x29;
-	packet[8]=0x8f;
-	packet[9]=0x90;
-	packet[10]=0x88;
-	packet[11]=0x81;
+	/* set mac source */
+	packet[6]=0x00;
+	packet[7]=0x60;
+	packet[8]=0xe9;
+	packet[9]=0x0a;
+	packet[10]=0x0b;
+	packet[11]=0x0c;
+	printf("using source ethernet address: %x:%x:%x:%x:%x:%x\n",
+			packet[6], packet[7], packet[8], packet[9], packet[10],packet[11]);
 	
 	/* ethernet type */
 	packet[12]=0xaa;
 	packet[13]=0xaa;
 
+	printf("using ether type %x:%x",packet[12],packet[13]);
 	/* Fill the rest of the packet */
 	for(i=14;i<100;i++)
 	{
 		packet[i]= (u_char)i;
 	}
 
+	int pkt_len = 200;
 	while (1) {
 		printf("sending\n");
 
 		/* Send down the packet */
 		if (pcap_sendpacket(fp,	// Adapter
 			packet,				// buffer with the packet
-			200					// size
+			pkt_len
 			) != 0)
 		{
 			printf("\nError sending the packet: %s\n", pcap_geterr(fp));
 			return 3;
 		}
-		printf("sent\n");
+		printf("sent %d bytes\n", pkt_len);
 
 		sleep(3);
 	}
