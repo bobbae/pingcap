@@ -110,8 +110,8 @@ int main(int argc, char **argv)
 	packet[11]=0x81;
 	
 	/* ethernet type */
-	packet[12]=0xdc;
-	packet[13]=0xac;
+	packet[12]=0xaa;
+	packet[13]=0xaa;
 
 	/* Fill the rest of the packet */
 	for(i=14;i<100;i++)
