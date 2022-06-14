@@ -26,9 +26,15 @@ int main(int argc, char **argv)
 	{
 		printf("%d. %s", ++i, d->name);
 		if (d->description)
-			printf(" (%s)\n", d->description);
+			printf(" (%s)", d->description);
 		else
-			printf(" (No description available)\n");
+			printf(" (No description available)");
+
+		if (d->addresses && d->addresses->addr) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)d->addresses->addr;
+			printf(" addr: %s", inet_ntoa(sin->sin_addr));
+		}
+		printf("\n");
 	}
 	printf("number of interfaces: %d\n",i);
 	if(i==0)
