@@ -39,6 +39,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include <time.h>
+
 #include "pcap.h"
 
 /* 4 bytes IP address */
@@ -214,6 +216,9 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	u_short sport,dport;
 	time_t local_tv_sec;
 	u_char *outpkt;
+	time_t now;
+	char ctimestr[200];
+	int i;
 
 	/*
 	 * unused parameter
@@ -227,7 +232,13 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 
 	/* print timestamp and length of the packet */
 	//printf("%s.%.6d len:%d ", timestr, header->ts.tv_usec, header->len);
-	printf("len %d ", header->len);
+
+	time(&now);
+	strcpy(ctimestr, ctime(&now));
+	i = strlen(ctimestr);
+	ctimestr[i - 1] = '\0';
+
+	printf("%s len %d ", ctimestr, header->len);
 
 	eth_hdr = (ethernet_header *) pkt_data;
 	printf("[%x:%x:%x:%x:%x:%x -> %x:%x:%x:%x:%x:%x (%x)] ",
