@@ -3,6 +3,7 @@ import socket
 
 def sendudp(ipaddr, port, message):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     sock.sendto(bytes(message, "utf-8"), (ipaddr, port))
 
 def main():

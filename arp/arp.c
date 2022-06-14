@@ -38,7 +38,7 @@ struct arp_header
         unsigned char target_ip[IPV4_LENGTH];
 };
 
-int main()
+int main(int argc,char * argv[])
 {
         int sd;
         unsigned char buffer[BUF_SIZE];
@@ -51,7 +51,12 @@ int main()
         struct arp_header *arp_resp = (struct arp_header *)(buffer+ETH2_HEADER_LEN);
         struct sockaddr_ll socket_address;
         int index,ret,length=0,ifindex;
+	char *interface;
 
+	if (argc < 2) {
+		printf("Usage: %s interface\n", argv[0]);
+		exit(1);
+	}
         memset(buffer,0x00,60);
         /*open socket*/
         sd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -59,7 +64,10 @@ int main()
                 perror("socket():");
                 exit(1);
         }
-        strcpy(ifr.ifr_name,"eth1.30");
+
+	interface = argv[1];
+	printf("using interface %s\n",interface);
+        strcpy(ifr.ifr_name, interface);
         /*retrieve ethernet interface index*/
         if (ioctl(sd, SIOCGIFINDEX, &ifr) == -1) {
                 perror("SIOCGIFINDEX");
