@@ -1,8 +1,4 @@
 #ifdef _MSC_VER
-/*
- * we do not want the warnings about the old deprecated and unsecure CRT functions
- * since these examples can be compiled under *nix as well
- */
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
@@ -10,7 +6,6 @@
 
 #include "pcap.h"
 
-/* 4 bytes IP address */
 typedef struct ip_address {
 	u_char byte1;
 	u_char byte2;
@@ -18,7 +13,6 @@ typedef struct ip_address {
 	u_char byte4;
 } ip_address;
 
-/* IPv4 header */
 typedef struct ip_header {
 	u_char ver_ihl;		// Version (4 bits) + Internet header length (4 bits)
 	u_char tos;		// Type of service 
@@ -33,7 +27,6 @@ typedef struct ip_header {
 	u_int op_pad;		// Option + Padding
 } ip_header;
 
-/* UDP header*/
 typedef struct udp_header {
 	u_short sport;		// Source port
 	u_short dport;		// Destination port
@@ -47,7 +40,6 @@ typedef struct ethernet_header {
 	u_short type;		// IP? ARP? RARP? etc
 } ethernet_header;
 
-/* prototype of the packet handler */
 void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		    const u_char * pkt_data);
 
@@ -67,7 +59,6 @@ int main()
 	struct bpf_program fcode;
 
 	printf("starting\n");
-	/* Retrieve the device list */
 
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
 		printf("Error in pcap_findalldevs: %s\n", errbuf);
@@ -75,7 +66,6 @@ int main()
 	}
 
 	printf("list all devs\n");
-	/* Print the list */
 	for (d = alldevs; d; d = d->next) {
 		printf("%d. %s", ++i, d->name);
 		if (d->description)
@@ -115,8 +105,7 @@ int main()
 
 	/* Open the adapter */
 	if ((adhandle = pcap_open_live(d->name,	// name of the device
-				       65536,	// portion of the packet to capture. 
-				       // 65536 grants that the whole packet will be captured on all the MACs.
+				       65536, // 65536 grants that the whole packet will be captured on all the MACs.
 				       1,	// promiscuous mode (nonzero means promiscuous)
 				       1000,	// read timeout
 				       errbuf	// error buffer
@@ -128,7 +117,6 @@ int main()
 		return -1;
 	}
 
-	/* Check the link layer. We support only Ethernet for simplicity. */
 	if (pcap_datalink(adhandle) != DLT_EN10MB) {
 		fprintf(stderr,
 			"\nThis program works only on Ethernet networks.\n");
@@ -140,13 +128,11 @@ int main()
 	netmask = 0xffffff;
 #if 0
 	if (d->addresses != NULL)
-		/* Retrieve the mask of the first address of the interface */
 		netmask =
 		    ((struct sockaddr_in *)(d->addresses->netmask))->sin_addr.
 		    S_un.S_addr;
 #endif
 
-	//compile the filter
 	if (pcap_compile(adhandle, &fcode, packet_filter, 1, netmask) < 0) {
 		fprintf(stderr,
 			"\nUnable to compile the packet filter. Check the syntax.\n");
@@ -154,7 +140,6 @@ int main()
 		pcap_freealldevs(alldevs);
 		return -1;
 	}
-	//set the filter
 	if (pcap_setfilter(adhandle, &fcode) < 0) {
 		fprintf(stderr, "\nError setting the filter.\n");
 		/* Free the device list */
@@ -164,16 +149,13 @@ int main()
 
 	printf("\nlistening on %s...\n", d->name);
 
-	/* At this point, we don't need any more the device list. Free it */
 	pcap_freealldevs(alldevs);
 
-	/* start the capture */
 	pcap_loop(adhandle, 0, packet_handler, NULL);
 
 	return 0;
 }
 
-/* Callback function invoked by libpcap for every incoming packet */
 void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		    const u_char * pkt_data)
 {
@@ -190,17 +172,9 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	char ctimestr[200];
 	int i;
 
-	/*
-	 * unused parameter
-	 */
-	//(VOID)(param);
-
-	/* convert the timestamp to readable format */
 	//local_tv_sec = header->ts.tv_sec;
 	//ltime=localtime(&local_tv_sec);
 	//strftime( timestr, sizeof timestr, "%H:%M:%S", ltime);
-
-	/* print timestamp and length of the packet */
 	//printf("%s.%.6d len:%d ", timestr, header->ts.tv_usec, header->len);
 
 	time(&now);
@@ -217,18 +191,14 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	       eth_hdr->dst[0], eth_hdr->dst[1], eth_hdr->dst[2],
 	       eth_hdr->dst[3], eth_hdr->dst[4], eth_hdr->dst[5],
 	       eth_hdr->type);
-	/* retireve the position of the ip header */
 	ih = (ip_header *) (pkt_data + 14);	//length of ethernet header
 
-	/* retireve the position of the udp header */
 	ip_len = (ih->ver_ihl & 0xf) * 4;
 	uh = (udp_header *) ((u_char *) ih + ip_len);
 
-	/* convert from network byte order to host byte order */
 	sport = ntohs(uh->sport);
 	dport = ntohs(uh->dport);
 
-	/* print ip addresses and udp ports */
 	printf("%d.%d.%d.%d.%d -> %d.%d.%d.%d.%d\n",
 	       ih->saddr.byte1,
 	       ih->saddr.byte2,
