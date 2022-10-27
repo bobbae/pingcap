@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 	//servaddr.sin_addr.s_addr = INADDR_ANY;
 
 	if (argc < 2) {
-		printf("hostname required\n");
+		printf("Usage: %s hostname\nhostname required\n", argv[0]);
 		exit(1);
 	}
 
@@ -48,10 +48,11 @@ int main(int argc, char *argv[])
 	if ((he = gethostbyname(hostname)) == NULL) {
 		unsigned long ina = inet_addr(hostname);
 		if (ina == -1) {
-			print_error("gethostbyname failed and invalid IP address");
+			print_error
+			    ("gethostbyname failed and invalid IP address");
 			exit(7);
 		}
-        servaddr.sin_addr.s_addr = ina;
+		servaddr.sin_addr.s_addr = ina;
 	} else {
 		memcpy(&servaddr.sin_addr, he->h_addr_list[0], he->h_length);
 

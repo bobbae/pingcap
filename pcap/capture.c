@@ -105,7 +105,7 @@ int main()
 
 	/* Open the adapter */
 	if ((adhandle = pcap_open_live(d->name,	// name of the device
-				       65536, // 65536 grants that the whole packet will be captured on all the MACs.
+				       65536,	// 65536 grants that the whole packet will be captured on all the MACs.
 				       1,	// promiscuous mode (nonzero means promiscuous)
 				       1000,	// read timeout
 				       errbuf	// error buffer
@@ -129,8 +129,8 @@ int main()
 #if 0
 	if (d->addresses != NULL)
 		netmask =
-		    ((struct sockaddr_in *)(d->addresses->netmask))->sin_addr.
-		    S_un.S_addr;
+		    ((struct sockaddr_in *)(d->addresses->netmask))->
+		    sin_addr.S_un.S_addr;
 #endif
 
 	if (pcap_compile(adhandle, &fcode, packet_filter, 1, netmask) < 0) {
