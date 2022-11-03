@@ -14,7 +14,7 @@ typedef struct {
 #ifdef WINNT
 #define print_error(msg) printf("%s %d\n",(msg), WSAGetLastError())
 #else
-#define perror(msg) 
+#define print_error(msg) perror(msg) 
 #endif
 
 #define KSLEN 32
