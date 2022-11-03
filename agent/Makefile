@@ -1,9 +1,13 @@
 default: agclient agserve
 CC=gcc
-LIBS=
 ifeq ($(OS),Windows_NT)
 CFLAGS=-std=c99 -DWINNT -g
 LIBS=-lws2_32
+EXE=.exe
+else
+EXE=
+LIBS=
+CFLAGS=
 endif
 INC=common.h jsmn.h monocypher.h
 
@@ -14,7 +18,7 @@ agserve.o: agserve.c $(INC)
 common.o: common.c $(INC)
 
 agclient: agclient.o monocypher.o common.o
-	gcc -o agclient.exe agclient.o monocypher.o common.o $(LIBS)
+	gcc -o agclient$(EXE) agclient.o monocypher.o common.o $(LIBS)
 
 agserve: agserve.o monocypher.o common.o
-	gcc -o agserve.exe agserve.o monocypher.o common.o $(LIBS)
+	gcc -o agserve$(EXE) agserve.o monocypher.o common.o $(LIBS)

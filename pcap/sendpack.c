@@ -13,6 +13,9 @@ int main(int argc, char **argv)
 	pcap_if_t *d;
 	int inum;
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
+
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
 		printf("Error in pcap_findalldevs: %s\n", errbuf);
 		exit(1);
@@ -37,7 +40,7 @@ int main(int argc, char **argv)
 	printf("number of interfaces: %d\n", i);
 	if (i == 0) {
 		printf
-		    ("\nNo interfaces found! Make sure WinPcap is installed.\n");
+		    ("\nNo interfaces found! Make sure Pcap is installed.\n");
 		return -1;
 	}
 
@@ -64,7 +67,7 @@ int main(int argc, char **argv)
 
 	   if ((fp = pcap_open_live(argv[1], 65536, 1, 1000, errbuf)) == NULL)
 	   {
-	   fprintf(stderr,"\nUnable to open the adapter. %s is not supported by WinPcap\n", argv[1]);
+	   fprintf(stderr,"\nUnable to open the adapter. %s is not supported by Pcap\n", argv[1]);
 	   return 2;
 	   }
 	 */

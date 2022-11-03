@@ -55,8 +55,12 @@ int main()
 	char errbuf[PCAP_ERRBUF_SIZE];
 	u_int netmask;
 	//char packet_filter[] = "ip and udp";
-	char packet_filter[] = "ether proto 0xaaaa";
+	char packet_filter[] = "ether proto 0xaaaa or udp";	
+	//char packet_filter[] = "ether proto 0xaaaa";
 	struct bpf_program fcode;
+
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
 
 	printf("starting\n");
 
@@ -82,7 +86,7 @@ int main()
 	printf("number of interfaces: %d\n", i);
 	if (i == 0) {
 		printf
-		    ("\nNo interfaces found! Make sure WinPcap is installed.\n");
+		    ("\nNo interfaces found! Make sure Pcap is installed.\n");
 		return -1;
 	}
 
@@ -111,7 +115,7 @@ int main()
 				       errbuf	// error buffer
 	     )) == NULL) {
 		fprintf(stderr,
-			"\nUnable to open the adapter. %s is not supported by WinPcap\n");
+			"\nUnable to open the adapter. %s is not supported by Pcap\n");
 		/* Free the device list */
 		pcap_freealldevs(alldevs);
 		return -1;

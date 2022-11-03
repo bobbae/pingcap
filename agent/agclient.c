@@ -39,6 +39,9 @@ int main(int argc, char *argv[])
 	struct hostent *he;
 	crypto_ctx_t cctx;
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
+
 #ifdef WINNT
 	WSADATA wsaData;
 	int res = WSAStartup(MAKEWORD(2, 2), &wsaData);
