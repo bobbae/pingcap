@@ -1,8 +1,8 @@
-#include "monocypher.h"
-//#include "sha512.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "monocypher.h"
 
 void main()
 {

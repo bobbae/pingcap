@@ -6,7 +6,6 @@
 #ifdef _WIN32
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
-#pragma comment(lib, "Ws2_32.lib")
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
