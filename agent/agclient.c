@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
 
-#ifdef WINNT
+#ifdef WIN32
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #else
@@ -17,11 +18,11 @@
 #include "common.h"
 #include "monocypher.h"
 
-int get_unique_id(crypto_ctx_t * ctx)
+static int get_unique_id(crypto_ctx_t * ctx)
 {
 	int idval[] = { 0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
 		0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0
-	};			/* XXX random ID */
+	};			/* XXX  */
 	int i;
 
 	for (i = 0; i < sizeof(idval) / sizeof(int); i++) {
@@ -42,7 +43,7 @@ int main(int argc, char *argv[])
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 
-#ifdef WINNT
+#ifdef WIN32
 	WSADATA wsaData;
 	int res = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (res != NO_ERROR) {

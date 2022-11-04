@@ -1,15 +1,20 @@
 default: capture sendpack
 CC=gcc
 ifeq ($(OS),Windows_NT)
-CFLAGS=-std=c99 -DWINNT -g
+DEBUG=-g
+INC=-I C:/WpdPack/Include
+CFLAGS=-std=c99 -DWINNT $(INC) $(DEBUG)
 LIBS=-L C:/Win10pcap/x64 -lwpcap -lws2_32
 EXE=.exe
 else
-LIBS=-lpcap
+DEBUG=
 EXE=
-CFLAGS=-std=c99
+LIBS=-lpcap
+INC=-I /usr/local/include
+CFLAGS=-std=c99 $(INC) $(DEBUG)
 endif
-INC=-I C:/WpdPack/Include
+
+
 
 capture: capture.c
 	gcc $(INC) -o capture$(EXE) capture.c $(LIBS)

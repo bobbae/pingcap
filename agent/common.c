@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
+#include <time.h>
 
-#ifdef WINNT
+#ifdef WIN32
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
 #else
@@ -20,6 +22,7 @@
 
 int fexit(int code)
 {
+	printf("\nexit: exiting with code %d\n", code);
 	fflush(stderr);
 	fflush(stdout);
 	exit(code);

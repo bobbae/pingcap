@@ -1,21 +1,25 @@
 default: agclient agserve
 CC=gcc
 ifeq ($(OS),Windows_NT)
-CFLAGS=-std=c99 -DWINNT -g
-LIBS=-lws2_32
+DEBUG=-g
+INC=-I C:/WpdPack/Include
+CFLAGS=-std=c99 -DWIN32 $(INC) $(DEBUG)
+LIBS=-L C:/Win10pcap/x64 -lwpcap -lws2_32
 EXE=.exe
 else
+DEBUG=
 EXE=
-LIBS=
-CFLAGS=
+LIBS=-lpcap
+INC=-I /usr/local/include
+CFLAGS=-std=c99 $(INC) $(DEBUG)
 endif
-INC=common.h jsmn.h monocypher.h
+INCFILES=common.h jsmn.h monocypher.h
 
-agclient.o: agclient.c $(INC)
+agclient.o: agclient.c $(INCFILES)
 
-agserve.o: agserve.c $(INC)
+agserve.o: agserve.c $(INCFILES)
 
-common.o: common.c $(INC)
+common.o: common.c $(INCFILES)
 
 agclient: agclient.o monocypher.o common.o
 	gcc -o agclient$(EXE) agclient.o monocypher.o common.o $(LIBS)
