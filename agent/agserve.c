@@ -381,7 +381,7 @@ int list_devs(pcap_if_t * adevs)
 			    (struct sockaddr_in *)d->addresses->addr;
 			printf(" %s", inet_ntoa(sin->sin_addr));
 		}
-		char *macaddr = getmac(d->name);
+		unsigned char *macaddr = getmac(d->name);
 		printf(" %02x:%02x:%02x:%02x:%02x:%02x",
 		       macaddr[0], macaddr[1], macaddr[2], macaddr[3],
 		       macaddr[4], macaddr[5]);
