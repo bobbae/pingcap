@@ -4,7 +4,7 @@ ifeq ($(OS),Windows_NT)
 DEBUG=-g
 INC=-I C:/WpdPack/Include
 CFLAGS=-std=c99 -DWIN32 $(INC) $(DEBUG)
-LIBS=-L C:/Win10pcap/x64 -lwpcap -lws2_32
+LIBS=-L C:/Win10pcap/x64 -lwpcap -liphlpapi -lws2_32 
 EXE=.exe
 else
 DEBUG=-g

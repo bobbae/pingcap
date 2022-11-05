@@ -10,6 +10,7 @@
 #ifdef WIN32
 #include <WinSock2.h>
 #include <Ws2tcpip.h>
+#include <iphlpapi.h>
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -315,26 +316,51 @@ pcap_if_t *init_alldevs()
 	return alldevs;
 }
 
-char mac_addr_buf[100];
+char mac_addr_buf[20];
+
 char *getmac(char *name)
 {
+	memset((void *)mac_addr_buf, 0, sizeof(mac_addr_buf));
 #ifdef WIN32
+	IP_ADAPTER_INFO adapter_info[32];
+	int alen = sizeof(adapter_info);
+	int status = GetAdaptersInfo(adapter_info, (PULONG) & alen);
+	if (status != ERROR_SUCCESS)
+		return mac_addr_buf;
+	IP_ADAPTER_INFO *pa = adapter_info;
+	while (pa) {
+		if (pa->Type == MIB_IF_TYPE_ETHERNET &&
+		    strcmp(pa->AdapterName, name) == 0) {
+			mac_addr_buf[0] = pa->Address[0];
+			mac_addr_buf[1] = pa->Address[1];
+			mac_addr_buf[2] = pa->Address[2];
+			mac_addr_buf[3] = pa->Address[3];
+			mac_addr_buf[4] = pa->Address[4];
+			mac_addr_buf[5] = pa->Address[5];
+			//printf("%s %s %s\n",pa->AdapterName, pa->Description,mac_addr_buf);
+			return mac_addr_buf;
+		}
+		pa = pa->Next;
+	}
+	return mac_addr_buf;
 #else
 	struct ifreq s;
 	int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 
 	strcpy(s.ifr_name, name);
-	if (ioctl(fd, SIOCGIFHWADDR, &s) == 0) {
-		sprintf(mac_addr_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-			(unsigned char)s.ifr_addr.sa_data[0],
-			(unsigned char)s.ifr_addr.sa_data[1],
-			(unsigned char)s.ifr_addr.sa_data[2],
-			(unsigned char)s.ifr_addr.sa_data[3],
-			(unsigned char)s.ifr_addr.sa_data[4],
-			(unsigned char)s.ifr_addr.sa_data[5]);
+	int res = ioctl(fd, SIOCGIFHWADDR, &s);
+	close(fd);
+
+	if (res != 0)
 		return mac_addr_buf;
-	}
-	return "unknown";
+
+	mac_addr_buf[0] = s.ifr_addr.sa_data[0];
+	mac_addr_buf[1] = s.ifr_addr.sa_data[1];
+	mac_addr_buf[2] = s.ifr_addr.sa_data[2];
+	mac_addr_buf[3] = s.ifr_addr.sa_data[3];
+	mac_addr_buf[4] = s.ifr_addr.sa_data[4];
+	mac_addr_buf[5] = s.ifr_addr.sa_data[5];
+	return mac_addr_buf;
 #endif
 }
 
@@ -350,14 +376,15 @@ int list_devs(pcap_if_t * adevs)
 			printf(" (%s)", d->description);
 		else
 			printf(" (No description available)");
-		/*
-		   if (d->addresses && d->addresses->addr) {
-		   struct sockaddr_in *sin =
-		   (struct sockaddr_in *)d->addresses->addr;
-		   printf(" addr: %s", inet_ntoa(sin->sin_addr));
-		   }
-		 */
-		printf(" %s", getmac(d->name));
+		if (d->addresses && d->addresses->addr) {
+			struct sockaddr_in *sin =
+			    (struct sockaddr_in *)d->addresses->addr;
+			printf(" %s", inet_ntoa(sin->sin_addr));
+		}
+		char *macaddr = getmac(d->name);
+		printf(" %02x:%02x:%02x:%02x:%02x:%02x",
+		       macaddr[0], macaddr[1], macaddr[2], macaddr[3],
+		       macaddr[4], macaddr[5]);
 		printf("\n");
 	}
 
