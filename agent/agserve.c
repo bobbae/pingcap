@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <ctype.h>
-#include "getopt.h"
+
 
 #ifdef WIN32
 #include <WinSock2.h>
@@ -24,9 +24,15 @@ typedef unsigned short u_short;
 typedef unsigned char u_char;
 #endif
 
+#include "getopt.h"
 #include "pcap.h"
 #include "common.h"
 #include "monocypher.h"
+
+typedef struct {
+	pcap_if_t *d;
+	unsigned char *macaddr;
+} device_info_t;
 
 static int get_unique_id(crypto_ctx_t * ctx)
 {
@@ -222,6 +228,7 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	const u_char *message;
 	u_char *pktbuf, packet[1500];
 	int i;
+	device_info_t *di = (device_info_t *) param;
 
 	message = pkt_data + 14;
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
@@ -242,12 +249,12 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	packet[4] = pkt_data[10];
 	packet[5] = pkt_data[11];
 
-	packet[6] = 0x01;
-	packet[7] = 0x00;
-	packet[8] = 0x5e;
-	packet[9] = 0xba;
-	packet[10] = 0xba;
-	packet[11] = 0xba;
+	packet[6] = di->macaddr[0];
+	packet[7] = di->macaddr[1];
+	packet[8] = di->macaddr[2];
+	packet[9] = di->macaddr[3];
+	packet[10] = di->macaddr[4];
+	packet[11] = di->macaddr[5];
 
 	packet[12] = 0xda;
 	packet[13] = 0xda;
@@ -497,7 +504,11 @@ int main(int argc, char *argv[])
 			printf("cannot setup pcap device %s\n", d->name);
 			fexit(1);
 		}
-		pcap_loop(adh, 0, packet_handler, 0);
+		unsigned char *macaddr = getmac(d->name);
+		device_info_t di;
+		di.d = d;
+		di.macaddr = macaddr;
+		pcap_loop(adh, 0, packet_handler, (unsigned char *)&di);
 
 		//pcap_freealldevs(alldevs);
 		//pcap_close(adhandle);
