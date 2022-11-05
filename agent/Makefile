@@ -7,7 +7,7 @@ CFLAGS=-std=c99 -DWIN32 $(INC) $(DEBUG)
 LIBS=-L C:/Win10pcap/x64 -lwpcap -lws2_32
 EXE=.exe
 else
-DEBUG=
+DEBUG=-g
 EXE=
 LIBS=-lpcap
 INC=-I /usr/local/include

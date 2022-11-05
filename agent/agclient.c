@@ -13,6 +13,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+
+typedef unsigned int u_int;
+typedef unsigned short u_short;
+typedef unsigned char u_char;
 #endif
 
 #include "common.h"
@@ -30,7 +34,6 @@ static int get_unique_id(crypto_ctx_t * ctx)
 	}
 	return 1;
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -85,7 +88,7 @@ int main(int argc, char *argv[])
 	fillin_secret_key(&cctx);
 	crypto_sign_public_key(cctx.signature_public_key, cctx.secret_key);
 	get_unique_id(&cctx);
-	
+
 	crypto_sign(cctx.signature, cctx.secret_key, cctx.signature_public_key,
 		    cctx.unique_id, KSLEN);
 
@@ -97,18 +100,19 @@ int main(int argc, char *argv[])
 	char signature_public_key_str[SLEN], public_key_str[SLEN];
 	memset((void *)unique_id_str, 0, sizeof(unique_id_str));
 	memset((void *)signature_str, 0, sizeof(signature_str));
-	memset((void *)signature_public_key_str, 0, sizeof(signature_public_key_str));
+	memset((void *)signature_public_key_str, 0,
+	       sizeof(signature_public_key_str));
 	memset((void *)public_key_str, 0, sizeof(public_key_str));
-							
+
 	tohex(cctx.unique_id, KSLEN, 16, unique_id_str);
 	tohex(cctx.signature, SIGLEN, 16, signature_str);
-	tohex(cctx.signature_public_key, KSLEN, 16,  signature_public_key_str);
-	tohex(cctx.public_key, KSLEN, 16,  public_key_str);
+	tohex(cctx.signature_public_key, KSLEN, 16, signature_public_key_str);
+	tohex(cctx.public_key, KSLEN, 16, public_key_str);
 
 	/* printf("uniq id %s signature %s signature public key %s public key %s\n", 
-	       unique_id_str, signature_str, signature_public_key_str, public_key_str);
-	*/
-	
+	   unique_id_str, signature_str, signature_public_key_str, public_key_str);
+	 */
+
 	sprintf(buffer, (char *)get_msg_template(), "hello", id_seq++,
 		unique_id_str, signature_str, signature_public_key_str,
 		public_key_str, "", "", "", "");
@@ -140,27 +144,30 @@ int main(int argc, char *argv[])
 		fexit(3);
 	}
 	/*
-	printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
-	       msg.type, msg.id, msg.num_params,
-	       msg.params[0], msg.params[1], msg.params[2], msg.params[3],
-	       msg.params[4], msg.params[5], msg.params[6], msg.params[7]);
-	*/
-	
+	   printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
+	   msg.type, msg.id, msg.num_params,
+	   msg.params[0], msg.params[1], msg.params[2], msg.params[3],
+	   msg.params[4], msg.params[5], msg.params[6], msg.params[7]);
+	 */
+
 	fromhex(cctx.peer_public_key, KSLEN, 16, msg.params[3]);
 	fromhex(cctx.mac, MAC_LEN, 16, msg.params[4]);
 	fromhex(cctx.nonce, NONCE_LEN, 16, msg.params[5]);
 
-	crypto_x25519(cctx.shared_secret, cctx.secret_key, cctx.peer_public_key);
+	crypto_x25519(cctx.shared_secret, cctx.secret_key,
+		      cctx.peer_public_key);
 
 	char cipher_text[MSLEN + 1], plain_text[MSLEN + 1];
 	char cipher_text_str[MSLEN + 1];
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)plain_text, 0, sizeof(plain_text));
-	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));	
+	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
 	fromhex(cipher_text, MSLEN, 16, msg.params[6]);
 	//printf("received cipher_text %d %s\n", strlen(cipher_text), cipher_text);
-	if (crypto_unlock(plain_text, cctx.shared_secret, cctx.nonce, cctx.mac, cipher_text, strlen(cipher_text))) {
+	if (crypto_unlock
+	    (plain_text, cctx.shared_secret, cctx.nonce, cctx.mac, cipher_text,
+	     strlen(cipher_text))) {
 		printf("error: cannot decrypt\n");
 	} else {
 		printf("decrypted: %s\n", plain_text);

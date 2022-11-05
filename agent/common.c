@@ -34,23 +34,22 @@ char *get_msg_template()
 	    " \"params\": [\"%s\", \"%s\", \"%s\", \"%s\",\"%s\",\"%s\",\"%s\",\"%s\" ] }";
 }
 
-
 int fillin_secret_key(crypto_ctx_t * ctx)
 {
 	int i;
 	time_t t;
 
-	srand((unsigned) time(&t));
+	srand((unsigned)time(&t));
 
 	if (!ctx) {
 		return -1;
 	}
 	for (i = 0; i < KSLEN; i++) {
-	  ctx->secret_key[i] = rand() & 0xff;	// terrible "secret" key for demo only
+		ctx->secret_key[i] = rand() & 0xff;	// terrible "secret" key for demo only
 	}
 
 	for (i = 0; i < NONCE_LEN; i++) {
-	  ctx->nonce[i] = rand() & 0xff;
+		ctx->nonce[i] = rand() & 0xff;
 	}
 	return 1;
 }
@@ -104,17 +103,18 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 		val = (val << 4) | (byte & 0xf);
 		if ((i % 2) == 0) {
 			if (j > numlen) {
-				printf("fromhex: numbers array not big enough %d %d\n", j, numlen);
+				printf
+				    ("fromhex: numbers array not big enough %d %d\n",
+				     j, numlen);
 				return -1;
 			}
-
 			//printf("%d %.2X\n",j,val&0xff);
 			numbers[j++] = val & 0xff;
 
 			val = 0;
 		}
 	}
-	
+
 	return j;
 }
 
@@ -177,9 +177,10 @@ int json_parse(char *instr, message_t * msg)
 				slen = g->end - g->start;
 				//printf("j %d slen %d\n", j, slen);
 				if (slen < SLEN) {
-					strncpy(msg->params[j],	instr + g->start, slen);
+					strncpy(msg->params[j],
+						instr + g->start, slen);
 				} else {
-					printf("slen too long %d\n",slen);
+					printf("slen too long %d\n", slen);
 				}
 				msg->num_params++;
 			}
@@ -190,11 +191,11 @@ int json_parse(char *instr, message_t * msg)
 		}
 	}
 	/*
-	printf("type %s id %s\n", msg->type, msg->id);
-	for (j = 0; j < msg->num_params; j++) {
-		printf("%d: %s\n", j, msg->params[j]);
-	}
-	*/
+	   printf("type %s id %s\n", msg->type, msg->id);
+	   for (j = 0; j < msg->num_params; j++) {
+	   printf("%d: %s\n", j, msg->params[j]);
+	   }
+	 */
 
 	return msg->num_params;
 }
