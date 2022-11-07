@@ -6,14 +6,14 @@ INC=-I C:/WpdPack/Include
 CFLAGS=-std=c99 -DWIN32 $(INC) $(DEBUG)
 LIBS=-L C:/Win10pcap/x64 -lwpcap -liphlpapi -lws2_32 
 EXE=.exe
-endif
-
-ifeq ($(OS),Linux)
+else
+ifeq ($(shell uname),Linux)
 DEBUG=-g
 EXE=
 LIBS=-lpcap
 INC=-I /usr/local/include
 CFLAGS=-std=c99 -DLINUX $(INC) $(DEBUG)
+endif
 endif
 
 INCFILES=common.h jsmn.h monocypher.h

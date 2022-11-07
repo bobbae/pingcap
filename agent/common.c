@@ -16,7 +16,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/ioctl.h>
+#include <linux/if.h>
 #include <netdb.h>
+typedef unsigned int u_int;
+typedef unsigned short u_short;
+typedef unsigned char u_char;
 #endif
 
 #include "pcap.h"
@@ -339,6 +344,7 @@ pcap_t *pcap_dev_setup(pcap_if_t * d)
 pcap_if_t *init_alldevs()
 {
 	int i;
+	pcap_if_t *d;
 
 	if (alldevs_initialized)
 		return alldevs;
@@ -348,7 +354,6 @@ pcap_if_t *init_alldevs()
 		return 0;
 	}
 	alldevs_initialized = 1;
-	pcap_if_t *d;
 	for (d = alldevs, i = 0; d; d = d->next, i++) ;
 	num_devices = i;
 	return alldevs;
