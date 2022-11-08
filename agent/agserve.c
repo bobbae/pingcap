@@ -55,7 +55,6 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 	uint8_t peer_public_key[KSLEN];
 
 	crypto_ctx_t *cctx = get_my_cctx();
-	fill_str(cctx);
 
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
 
@@ -67,6 +66,7 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 
 	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
 		    cctx->nonce, plain_text, strlen(plain_text));
+	fill_str(cctx);
 	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
