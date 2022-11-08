@@ -261,7 +261,7 @@ void fill_str(crypto_ctx_t *cctx)
 	tohex(cctx->mac, MAC_LEN, 16, cctx->mac_str);
 	tohex(cctx->nonce, NONCE_LEN, 16, cctx->nonce_str);
 
-	printf("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %x nonce %s\n",
+	printf("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
 			cctx->unique_id_str, cctx->signature_str,cctx->signature_public_key_str,
 			cctx->public_key_str, cctx->mac_str, cctx->nonce_str);
 }

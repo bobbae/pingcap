@@ -76,6 +76,7 @@ int handle_msg(char *buffer)
 		printf("invalid msg type %s\n", msgtype);
 		return -5;
 	}
+	printf("buffer %s\n", buffer);
 	printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
 	   msg.type, msg.id, msg.num_params,
 	   msg.params[0], msg.params[1], msg.params[2], msg.params[3],
