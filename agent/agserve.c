@@ -67,10 +67,10 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 
 	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
 		    cctx->nonce, plain_text, strlen(plain_text));
-	printf("plain_text %d %s\n", strlen(plain_text), plain_text);
+	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n", strlen(cipher_text_str), cipher_text_str);
+	printf("cipher_text_str %d %s\n",(int) strlen(cipher_text_str), cipher_text_str);
 
 	// XXX params: unique_id, signature, signature_public_key, public_key, mac, nonce, cipher_text, empty
 	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
@@ -174,7 +174,7 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda) 
 		return;
-	printf("Got 0xdada len %d message %s\n", strlen(message), message);
+	printf("Got 0xdada len %d message %s\n",(int) strlen(message), message);
 
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
 		printf("bad size\n");
