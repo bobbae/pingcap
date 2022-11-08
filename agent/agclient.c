@@ -34,19 +34,6 @@ int my_idval[] = {	//XXX
 	0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0
 };
 
-int print_help(char *name)
-{
-	printf("Usage: %s flags\n", name);
-	printf("-h print help\n");
-	printf("-s use socket\n");
-	printf("-p use pcap\n");
-	printf("-l list network interfaces\n");
-	printf("-d index specify network interface index\n");
-	printf("-p port specify port\n");
-	printf("-a address specify name or address of server\n"); 
-	fflush(stdout);
-}
-
 void fill_hello(char *buffer)
 {
 	crypto_ctx_t *cctx = get_my_cctx();
@@ -79,22 +66,20 @@ int handle_msg(char *buffer)
 	char msgtype[MSLEN + 1];
 
 	if (parse_msg(buffer, &msg) < 0) {
-		//printf("cannot parse message\n");
+		printf("cannot parse message\n");
 		return -3;
 	}
 
 	strcpy(msgtype, msg.type);
 
 	if (msg_type_check(msgtype) < 0) {
-		//printf("invalid msg type %s\n", msgtype);
+		printf("invalid msg type %s\n", msgtype);
 		return -5;
 	}
-	/*
-	   printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
+	printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
 	   msg.type, msg.id, msg.num_params,
 	   msg.params[0], msg.params[1], msg.params[2], msg.params[3],
 	   msg.params[4], msg.params[5], msg.params[6], msg.params[7]);
-	 */
 
 	uint8_t peer_public_key[KSLEN];
 	crypto_ctx_t *cctx = get_my_cctx();
@@ -237,6 +222,18 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 	*/
+}
+
+int print_help(char *name)
+{
+	printf("Usage: %s flags\n", name);
+	printf("-h print help\n");
+	printf("-s use socket\n");
+	printf("-l list network interfaces\n");
+	printf("-d index specify network interface index\n");
+	printf("-p port specify port\n");
+	printf("-a address specify name or address of server\n"); 
+	fflush(stdout);
 }
 
 int main(int argc, char *argv[])

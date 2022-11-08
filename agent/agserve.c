@@ -67,16 +67,16 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 
 	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
 		    cctx->nonce, plain_text, strlen(plain_text));
-	//printf("plain_text %d %s\n", strlen(plain_text), plain_text);
-	//printf("cipher_text %d %s\n", strlen(cipher_text),cipher_text);
+	printf("plain_text %d %s\n", strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	//printf("cipher_text_str %d %s\n", strlen(cipher_text_str), cipher_text_str);
+	printf("cipher_text_str %d %s\n", strlen(cipher_text_str), cipher_text_str);
 
 	// XXX params: unique_id, signature, signature_public_key, public_key, mac, nonce, cipher_text, empty
 	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
 		cctx->unique_id_str, cctx->signature_str, cctx->signature_public_key_str,
 		cctx->public_key_str, cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
+	printf("buffer %s\n", buffer);
 }
 
 
@@ -87,19 +87,19 @@ int handle_msg(char *buffer)
 	char msgtype[MSLEN + 1];
 
 	if (parse_msg(buffer, &msg) < 0) {
-		//printf("cannot parse message\n");
+		printf("cannot parse message\n");
 		return -3;
 	}
 
 	strcpy(msgtype, msg.type);
 
 	if (msg_type_check(msgtype) < 0) {
-		//printf("invalid msg type %s\n", msgtype);
+		printf("invalid msg type %s\n", msgtype);
 		return -5;
 	}
 
 	if (verify_signature(&msg) < 0) {
-		//printf("cannot verify signature\n");
+		printf("cannot verify signature\n");
 		return -4;
 	}
 
@@ -149,6 +149,7 @@ int proc_sock(int port)
 			printf("error handling message\n");
 			return -9;
 		}
+		printf("sending %s\n", buffer);
 		n = sendto(sockfd, (const char *)buffer, strlen(buffer),
 			   0, (const struct sockaddr *)&servaddr,
 			   sizeof(servaddr));
@@ -173,6 +174,7 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda) 
 		return;
+	printf("Got 0xdada len %d message %s\n", strlen(message), message);
 
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
 		printf("bad size\n");
@@ -185,8 +187,10 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		printf("failed to handle msg\n");
 		return;
 	}
+
 	fill_ether_header((char *)packet,(char *) di->macaddr,(char *) &pkt_data[6]);
 
+	printf("sending pktbuf %s\n", pktbuf);
 	if (pcap_sendpacket(get_adhandle(), packet, strlen(pktbuf) + 14) != 0) {
 		printf("error sending the packet\n");
 		return;
@@ -198,10 +202,9 @@ int print_help(char *name)
 	printf("Usage: %s flags\n", name);
 	printf("-h       print help\n");
 	printf("-s       use socket\n");
-	printf("-p       use pcap\n");
 	printf("-l       list network interfaces\n");
-	printf("-d index use network interface index\n");
-	printf("-p port  use port\n");
+	printf("-d index specify network interface index\n");
+	printf("-p port  specify port\n");
 	fflush(stdout);
 }
 

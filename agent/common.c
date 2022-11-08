@@ -441,8 +441,10 @@ int list_devs(pcap_if_t * adevs)
 	}
 }
 
-void fill_ether_header(char *packet, char *src, char *dst)
+void fill_ether_header(char *packet, unsigned char *src, unsigned char *dst)
 {
+	printf("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       dst[0],dst[1],dst[2],dst[3],dst[4],dst[5],src[0],src[1],src[2],src[3],src[4],src[5]);	
 	packet[0] = dst[0];
 	packet[1] = dst[1];
 	packet[2] = dst[2];

@@ -62,7 +62,7 @@ pcap_if_t *init_alldevs();
 char *getmac(char *name);
 int list_devs(pcap_if_t * adevs);
 void init_wsock();
-void fill_ether_header(char *header, char *src, char *dst);
+void fill_ether_header(char *header,unsigned char *src, unsigned char *dst);
 void fill_str(crypto_ctx_t *cctx);
 crypto_ctx_t *get_my_cctx();
 pcap_t *get_adhandle();
