@@ -260,6 +260,10 @@ void fill_str(crypto_ctx_t *cctx)
 	tohex(cctx->public_key, KSLEN, 16, cctx->public_key_str);
 	tohex(cctx->mac, MAC_LEN, 16, cctx->mac_str);
 	tohex(cctx->nonce, NONCE_LEN, 16, cctx->nonce_str);
+
+	printf("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %x nonce %s\n",
+			cctx->unique_id_str, cctx->signature_str,cctx->signature_public_key_str,
+			cctx->public_key_str, cctx->mac_str, cctx->nonce_str);
 }
 
 int parse_msg(char *buffer, message_t * msg)
@@ -292,10 +296,10 @@ int verify_signature(message_t * msg)
 	if (crypto_check
 	    (cctx.signature, cctx.signature_public_key, cctx.unique_id,
 	     KSLEN)) {
-		//printf("signature is corrupt\n");
+		printf("signature is corrupt\n");
 		return -9;
 	}
-	//printf("signature is verified\n");
+	printf("signature is verified\n");
 	return 1;
 }
 
