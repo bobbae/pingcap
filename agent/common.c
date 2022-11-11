@@ -29,7 +29,7 @@ typedef unsigned char u_char;
 #include "jsmn.h"
 #include "common.h"
 
-int g_id = 1000; // XXX
+int g_id = 1000;		// XXX
 crypto_ctx_t my_cctx;
 char mac_addr_buf[20];
 char *hexnums = "0123456789ABCDEF";
@@ -39,7 +39,7 @@ pcap_t *adhandle = 0;
 int num_devices = 0;
 char errbuf[PCAP_ERRBUF_SIZE];
 
-crypto_ctx_t *get_my_cctx() 
+crypto_ctx_t *get_my_cctx()
 {
 	return &my_cctx;
 }
@@ -86,7 +86,6 @@ int fillin_secret_key(crypto_ctx_t * ctx)
 	}
 	return 1;
 }
-
 
 int tohex(char *numbers, int numlen, int base, char *outbuf)
 {
@@ -152,7 +151,7 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 
 int get_id_seq()
 {
-	return g_id++;	
+	return g_id++;
 }
 
 int jsoneq(const char *json, jsmntok_t * tok, const char *s)
@@ -244,26 +243,29 @@ void init_my_cctx(int idval[], int idlen)
 	crypto_x25519_public_key(my_cctx.public_key, my_cctx.secret_key);
 }
 
-
-void fill_str(crypto_ctx_t *cctx)
+void fill_str(crypto_ctx_t * cctx)
 {
 	memset((void *)cctx->unique_id_str, 0, sizeof(cctx->unique_id_str));
 	memset((void *)cctx->signature_str, 0, sizeof(cctx->signature_str));
-	memset((void *)cctx->signature_public_key_str, 0, sizeof(cctx->signature_public_key_str));
+	memset((void *)cctx->signature_public_key_str, 0,
+	       sizeof(cctx->signature_public_key_str));
 	memset((void *)cctx->public_key_str, 0, sizeof(cctx->public_key_str));
 	memset((void *)cctx->nonce_str, 0, sizeof(cctx->nonce_str));
 	memset((void *)cctx->mac_str, 0, sizeof(cctx->mac_str));
 
 	tohex(cctx->unique_id, KSLEN, 16, cctx->unique_id_str);
 	tohex(cctx->signature, SIGLEN, 16, cctx->signature_str);
-	tohex(cctx->signature_public_key, KSLEN, 16, cctx->signature_public_key_str);
+	tohex(cctx->signature_public_key, KSLEN, 16,
+	      cctx->signature_public_key_str);
 	tohex(cctx->public_key, KSLEN, 16, cctx->public_key_str);
 	tohex(cctx->mac, MAC_LEN, 16, cctx->mac_str);
 	tohex(cctx->nonce, NONCE_LEN, 16, cctx->nonce_str);
 
-	printf("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
-			cctx->unique_id_str, cctx->signature_str,cctx->signature_public_key_str,
-			cctx->public_key_str, cctx->mac_str, cctx->nonce_str);
+	printf
+	    ("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
+	     cctx->unique_id_str, cctx->signature_str,
+	     cctx->signature_public_key_str, cctx->public_key_str,
+	     cctx->mac_str, cctx->nonce_str);
 }
 
 int parse_msg(char *buffer, message_t * msg)
@@ -303,8 +305,7 @@ int verify_signature(message_t * msg)
 	return 1;
 }
 
-
-pcap_t *get_adhandle() 
+pcap_t *get_adhandle()
 {
 	return adhandle;
 }
@@ -398,7 +399,7 @@ char *getmac(char *name)
 	struct ifreq s;
 	int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
 
-	strcpy(s.ifr_name, name);
+	strncpy(s.ifr_name, name, IFNAMSIZ);
 	int res = ioctl(fd, SIOCGIFHWADDR, &s);
 	close(fd);
 
@@ -417,9 +418,11 @@ char *getmac(char *name)
 
 int show_devs()
 {
-		pcap_if_t *adevs;
-		adevs = init_alldevs();
-        list_devs(adevs);
+	pcap_if_t *adevs;
+	adevs = init_alldevs();
+
+	list_devs(adevs);
+
 }
 
 int list_devs(pcap_if_t * adevs)
@@ -454,8 +457,10 @@ int list_devs(pcap_if_t * adevs)
 
 void fill_ether_header(char *packet, unsigned char *src, unsigned char *dst)
 {
-	printf("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
-		       dst[0],dst[1],dst[2],dst[3],dst[4],dst[5],src[0],src[1],src[2],src[3],src[4],src[5]);	
+	printf
+	    ("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
+	     dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], src[0], src[1],
+	     src[2], src[3], src[4], src[5]);
 	packet[0] = dst[0];
 	packet[1] = dst[1];
 	packet[2] = dst[2];
@@ -474,12 +479,12 @@ void fill_ether_header(char *packet, unsigned char *src, unsigned char *dst)
 	packet[13] = 0xda;
 }
 
-void init_wsock() 
+void init_wsock()
 {
 #ifdef WIN32
 	WSADATA wsaData;
 	int res = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (res != NO_ERROR) 
+	if (res != NO_ERROR)
 		print_error("WSAStartup failed");
 #endif
 }

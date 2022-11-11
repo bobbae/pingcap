@@ -29,7 +29,7 @@ typedef unsigned char u_char;
 #include "monocypher.h"
 #include "common.h"
 
-int my_idval[] = {	//XXX
+int my_idval[] = {		//XXX
 	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
 	0x80, 0x90, 0xa0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0
 };
@@ -44,8 +44,9 @@ void fill_hello(char *buffer)
 	 */
 
 	sprintf(buffer, (char *)get_msg_template(), "hello", get_id_seq(),
-		cctx->unique_id_str, cctx->signature_str, cctx->signature_public_key_str,
-		cctx->public_key_str, "", "", "", "");
+		cctx->unique_id_str, cctx->signature_str,
+		cctx->signature_public_key_str, cctx->public_key_str, "", "",
+		"", "");
 }
 
 int msg_type_check(char *msgtype)
@@ -77,10 +78,11 @@ int handle_msg(char *buffer)
 		return -5;
 	}
 	printf("buffer %s\n", buffer);
-	printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
-	   msg.type, msg.id, msg.num_params,
-	   msg.params[0], msg.params[1], msg.params[2], msg.params[3],
-	   msg.params[4], msg.params[5], msg.params[6], msg.params[7]);
+	printf
+	    ("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
+	     msg.type, msg.id, msg.num_params, msg.params[0], msg.params[1],
+	     msg.params[2], msg.params[3], msg.params[4], msg.params[5],
+	     msg.params[6], msg.params[7]);
 
 	uint8_t peer_public_key[KSLEN];
 	crypto_ctx_t *cctx = get_my_cctx();
@@ -97,16 +99,16 @@ int handle_msg(char *buffer)
 	fromhex(cipher_text, MSLEN, 16, msg.params[6]);
 
 	if (crypto_unlock
-	    (plain_text, cctx->shared_secret, cctx->nonce, cctx->mac, cipher_text,
-	     strlen(cipher_text))) {
+	    (plain_text, cctx->shared_secret, cctx->nonce, cctx->mac,
+	     cipher_text, strlen(cipher_text))) {
 		printf("error: cannot decrypt\n");
 		return -9;
-	} 
+	}
 	printf("decrypted: %s\n", plain_text);
 	return 1;
 }
 
-int proc_sock(int port, char *address) 
+int proc_sock(int port, char *address)
 {
 	int sockfd;
 	struct hostent *he;
@@ -147,7 +149,7 @@ int proc_sock(int port, char *address)
 		return -4;
 	}
 	printf("Sent %d bytes, %s\n", n, buffer);
-	
+
 	addrlen = sizeof(servaddr);
 	n = recvfrom(sockfd, (char *)buffer, MAXLINE,
 		     0, (struct sockaddr *)&servaddr, &addrlen);
@@ -167,7 +169,7 @@ int proc_sock(int port, char *address)
 	return 1;
 }
 
-char *get_bogus_mac() 
+char *get_bogus_mac()
 {
 	static char dstaddr[6];
 	dstaddr[0] = 0x00;
@@ -184,7 +186,8 @@ int send_hello_packet(char *packet, char *macaddr, char *src)
 	fill_ether_header(packet, macaddr, src);
 	fill_hello(packet + 14);
 
-	if (pcap_sendpacket(get_adhandle(), packet, 14 + strlen(packet + 14)) != 0) {
+	if (pcap_sendpacket(get_adhandle(), packet, 14 + strlen(packet + 14)) !=
+	    0) {
 		printf("error sending the packet\n");
 		return -1;
 	}
@@ -200,7 +203,7 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	device_info_t *di = (device_info_t *) param;
 
 	message = pkt_data + 14;
-	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda) 
+	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
 		printf("bad size\n");
@@ -215,14 +218,14 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 	/*
-	fill_ether_header((char *)packet,(char *) di->macaddr,(char *) &pkt_data[6]);
+	   fill_ether_header((char *)packet,(char *) di->macaddr,(char *) &pkt_data[6]);
 
-	if (pcap_sendpacket(adhandle, packet, strlen(pktbuf) + 14) != 0) {
-		printf("\nError sending the packet: %s\n",
-		       pcap_geterr(adhandle));
-		return;
-	}
-	*/
+	   if (pcap_sendpacket(adhandle, packet, strlen(pktbuf) + 14) != 0) {
+	   printf("\nError sending the packet: %s\n",
+	   pcap_geterr(adhandle));
+	   return;
+	   }
+	 */
 }
 
 int print_help(char *name)
@@ -233,7 +236,7 @@ int print_help(char *name)
 	printf("-l list network interfaces\n");
 	printf("-d index specify network interface index\n");
 	printf("-p port specify port\n");
-	printf("-a address specify name or address of server\n"); 
+	printf("-a address specify name or address of server\n");
 	fflush(stdout);
 }
 
@@ -295,7 +298,7 @@ int main(int argc, char *argv[])
 			fexit(1);
 		}
 
-		if (list_ifs) 
+		if (list_ifs)
 			printf("ignoring -l\n");
 		if (proc_sock(port, address) < 0) {
 			printf("error processing socket\n");
@@ -341,7 +344,7 @@ int main(int argc, char *argv[])
 
 		char packet[1500];
 		unsigned char *macaddr = getmac(d->name);
-		if (send_hello_packet(packet, macaddr, get_bogus_mac()) <0) {
+		if (send_hello_packet(packet, macaddr, get_bogus_mac()) < 0) {
 			printf("cannot send hello packet\n");
 			fexit(1);
 		}

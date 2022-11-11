@@ -30,11 +30,10 @@ typedef unsigned char u_char;
 #include "monocypher.h"
 #include "common.h"
 
-int my_idval[] = {	//XXX
+int my_idval[] = {		//XXX
 	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
-
 
 int msg_type_check(char *msgtype)
 {
@@ -58,8 +57,7 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
 
-	crypto_x25519(cctx->shared_secret, cctx->secret_key,
-		      peer_public_key);
+	crypto_x25519(cctx->shared_secret, cctx->secret_key, peer_public_key);
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
@@ -70,16 +68,16 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n",(int) strlen(cipher_text_str), cipher_text_str);
+	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
+	       cipher_text_str);
 
 	// XXX params: unique_id, signature, signature_public_key, public_key, mac, nonce, cipher_text, empty
 	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
-		cctx->unique_id_str, cctx->signature_str, cctx->signature_public_key_str,
-		cctx->public_key_str, cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
+		cctx->unique_id_str, cctx->signature_str,
+		cctx->signature_public_key_str, cctx->public_key_str,
+		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
 	printf("buffer %s\n", buffer);
 }
-
-
 
 int handle_msg(char *buffer)
 {
@@ -172,9 +170,9 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	device_info_t *di = (device_info_t *) param;
 
 	message = pkt_data + 14;
-	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda) 
+	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
-	printf("Got 0xdada len %d message %s\n",(int) strlen(message), message);
+	printf("Got 0xdada len %d message %s\n", (int)strlen(message), message);
 
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
 		printf("bad size\n");
@@ -188,7 +186,8 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 
-	fill_ether_header((char *)packet,(char *) di->macaddr,(char *) &pkt_data[6]);
+	fill_ether_header((char *)packet, (char *)di->macaddr,
+			  (char *)&pkt_data[6]);
 
 	printf("sending pktbuf %s\n", pktbuf);
 	if (pcap_sendpacket(get_adhandle(), packet, strlen(pktbuf) + 14) != 0) {

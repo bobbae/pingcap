@@ -12,3 +12,4 @@ import "C"
 func main() {
     C.show_devs()
 }
+
