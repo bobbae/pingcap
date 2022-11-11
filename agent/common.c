@@ -415,6 +415,13 @@ char *getmac(char *name)
 #endif
 }
 
+int show_devs()
+{
+		pcap_if_t *adevs;
+		adevs = init_alldevs();
+        list_devs(adevs);
+}
+
 int list_devs(pcap_if_t * adevs)
 {
 	pcap_if_t *d;

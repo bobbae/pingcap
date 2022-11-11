@@ -67,3 +67,4 @@ void fill_str(crypto_ctx_t *cctx);
 crypto_ctx_t *get_my_cctx();
 pcap_t *get_adhandle();
 int get_num_devices();
+int show_devs();
