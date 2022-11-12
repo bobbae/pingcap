@@ -422,7 +422,6 @@ int show_devs()
 	adevs = init_alldevs();
 
 	list_devs(adevs);
-
 }
 
 int list_devs(pcap_if_t * adevs)

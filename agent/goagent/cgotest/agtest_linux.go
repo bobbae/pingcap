@@ -2,7 +2,7 @@
 package main
 
 /*
-#cgo CFLAGS: -I.. -I. -g -std=c99 -DLINUX -I /usr/local/include
+#cgo CFLAGS: -I../.. -I. -g -std=c99 -DLINUX -I /usr/local/include
 #cgo LDFLAGS: -lpcap
 #include "common.c"
 #include "monocypher.c"
@@ -10,6 +10,5 @@ package main
 import "C"
 
 func main() {
-    C.show_devs()
+	C.show_devs()
 }
-

@@ -6,6 +6,9 @@ https://github.com/golang/go/issues/53000
 
 ## Gcc version
 
+If you see an error like:  unrecognized option '--high-entropy-va'
+Update your gcc to latest version.
+
 ### Windows gcc
 clang version 15.0.0 (https://github.com/llvm/llvm-project.git 4ba6a9c9f65bbc8bd06e3652cb20fd4dfc846137)
 
