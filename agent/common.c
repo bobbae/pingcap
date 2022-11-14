@@ -191,6 +191,88 @@ int jsoneq(const char *json, jsmntok_t * tok, const char *s)
 	return -1;
 }
 
+int msg_type_check(char *msgtype)
+{
+	char *valid_msgtypes[] = { "hello", "ping", "info", "config", "scan" };
+	int i;
+	for (i = 0; i < sizeof(valid_msgtypes) / sizeof(char *); i++) {
+		if (strcmp(valid_msgtypes[i], msgtype) == 0)
+			return 1;
+	}
+	return 0;
+}
+
+int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
+		   char *plain_text, char *extra)
+{
+	char buffer[MAXLINE];
+
+	char myaddrbytes[7], dstaddrbytes[7];
+	memset((void *)myaddrbytes, 0, sizeof(myaddrbytes));
+	memset((void *)dstaddrbytes, 0, sizeof(dstaddrbytes));
+	sscanf(myaddr, "%02x:%02x:%02x:%02x:%02x:%02x",
+	       &myaddrbytes[0],
+	       &myaddrbytes[1],
+	       &myaddrbytes[2], &myaddrbytes[3], &myaddrbytes[4],
+	       &myaddrbytes[5]);
+	sscanf(dstaddr, "%02x:%02x:%02x:%02x:%02x:%02x", &dstaddrbytes[0],
+	       &dstaddrbytes[1], &dstaddrbytes[2], &dstaddrbytes[3],
+	       &dstaddrbytes[4], &dstaddrbytes[5]);
+
+	fill_ether_header((char *)buffer, (char *)myaddrbytes,
+			  (char *)dstaddrbytes);
+
+	return encrypt_send_packet(buffer, peer_pub, msgtype,
+				   plain_text, extra);
+}
+
+int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
+			char *plain_text, char *extra)
+{
+	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
+	crypto_ctx_t *cctx = get_my_cctx();
+	uint8_t peer_public_key[KSLEN];
+	printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",msgtype, peer_pub, plain_text);
+
+	fromhex(peer_public_key, KSLEN, 16, peer_pub);
+
+	uint8_t shared_secret[KSLEN];
+	memset((void *)shared_secret, 0, sizeof(shared_secret));
+	crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
+	uint8_t shared_secret_str[SLEN];
+	memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
+	tohex(shared_secret, KSLEN, 16, shared_secret_str);
+
+	printf("encrypting with shared_secret %s peer_pub %s\n", shared_secret_str, peer_public_key);
+
+	memset((void *)cipher_text, 0, sizeof(cipher_text));
+	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
+
+	crypto_lock(cctx->mac, cipher_text, shared_secret,
+		    cctx->nonce, plain_text, strlen(plain_text));
+	fill_str(cctx);
+	//printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
+
+	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
+	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
+	       cipher_text_str);
+
+	char *bp = &buffer[14];
+	sprintf(bp, (char *)get_msg_template(), msgtype, get_id_seq(),
+		cctx->unique_id_str, cctx->signature_str,
+		cctx->signature_public_key_str, cctx->public_key_str,
+		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
+	printf("pcap send encrypted msg %s\n", buffer);
+
+	if (pcap_sendpacket(get_adhandle(), buffer, strlen(bp) + 14) != 0) {
+		printf("error sending the packet\n");
+		return -1;
+	}
+	printf("sent %d, %s\n", strlen(bp)+14, bp);
+	return 1;
+}
+
+
 int json_parse(char *instr, message_t * msg)
 {
 	int i, j, r;
@@ -341,7 +423,11 @@ int parse_msg(char *buffer, message_t * msg)
 {
 	if (!buffer || !msg)
 		return -1;
+
+	printf("parsing msg %s\n", buffer);
+	
 	memset((void *)msg, 0, sizeof(*msg));
+
 	if (json_parse(buffer, msg) < 0) {
 		//printf("cannot parse message\n");
 		return -3;

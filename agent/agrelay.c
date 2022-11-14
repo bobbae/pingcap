@@ -37,48 +37,6 @@ int my_idval[] = {		//XXX
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-char *fill_response(char *buffer, char *peer_pub, char *msgtype,
-		    char *plain_text, char *extra)
-{
-	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
-	uint8_t peer_public_key[KSLEN];
-
-	crypto_ctx_t *cctx = get_my_cctx();
-
-	fromhex(peer_public_key, KSLEN, 16, peer_pub);
-
-	crypto_x25519(cctx->shared_secret, cctx->secret_key, peer_public_key);
-
-	memset((void *)cipher_text, 0, sizeof(cipher_text));
-	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
-
-	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
-		    cctx->nonce, plain_text, strlen(plain_text));
-	fill_str(cctx);
-	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
-
-	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
-	       cipher_text_str);
-
-	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
-		cctx->unique_id_str, cctx->signature_str,
-		cctx->signature_public_key_str, cctx->public_key_str,
-		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
-	printf("buffer %s\n", buffer);
-}
-
-int msg_type_check(char *msgtype)
-{
-	char *valid_msgtypes[] = { "hello" };
-
-	int i;
-	for (i = 0; i < sizeof(valid_msgtypes) / sizeof(char *); i++) {
-		if (strcmp(valid_msgtypes[i], msgtype) == 0)
-			return 1;
-	}
-	return 0;
-}
 
 void
 packet_handler(u_char * param, const struct pcap_pkthdr *header,
@@ -99,7 +57,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		printf("agrelay packet_handler, bad size %d\n", mlen);
 		return;
 	}
-	printf("message %d, %s\n", mlen, message);
+	printf("agrelay packet_handler received message %d, %s\n", mlen, message);
 
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
@@ -119,23 +77,18 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	crypto_ctx_t *cctx = get_my_cctx();
 
 	uint8_t peer_public_key[KSLEN];
-	fromhex(peer_public_key, KSLEN, 16, msg.public_key);
+	fromhex((char *)peer_public_key, KSLEN, 16, (char *)msg.public_key);
 
-	char peer_public_key_str[SLEN];
-	memset((void *)peer_public_key_str, 0, sizeof(peer_public_key_str));
-	
-	tohex(peer_public_key, KSLEN, 16, peer_public_key_str);
-	printf("peer_public_key_str %s\n", peer_public_key_str);
-	
-
-	if (endswith(msgtype, "-enc")) {
+	// presence of nonce or mac in the msg indicates encrypted content
+	if (strlen(msg.nonce) > 0) {
 		uint8_t mac[MAC_LEN];
 		uint8_t nonce[NONCE_LEN];
 
-		fromhex(mac, MAC_LEN, 16, msg.mac);
-		fromhex(nonce, NONCE_LEN, 16, msg.nonce);
+        fromhex((char *)mac, MAC_LEN, 16,(char *) msg.mac);
+        fromhex((char *)nonce, NONCE_LEN, 16, (char *)msg.nonce);
 
 		uint8_t shared_secret[KSLEN];
+        memset((void *)shared_secret, 0, sizeof(shared_secret));
 		crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
 
 		char cipher_text[MSLEN + 1];
@@ -144,14 +97,19 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		memset((void *)plain_text, 0, sizeof(plain_text));
 		fromhex(cipher_text, MSLEN, 16, msg.cipher_text);
 
+        uint8_t shared_secret_str[SLEN];
+        memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
+        tohex((char *)shared_secret, KSLEN, 16,(char *) shared_secret_str);
+        printf("agrelay: decrypting with shared_secret %s peer_pub %s\n", shared_secret_str, msg.public_key);
+
 		if (crypto_unlock
 		    (plain_text, shared_secret, nonce, mac,
 		     cipher_text, strlen(cipher_text))) {
-			printf("error: cannot decrypt\n");
+			printf("agrelay error: cannot decrypt\n");
 			return;
 		}
 
-		printf("decrypted: %s\n", plain_text);
+		printf("agrelay decrypted: %s\n", plain_text);
 	}
 
 	char myaddr[MSLEN], srcaddr[MSLEN];
@@ -166,7 +124,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 
 
 	sprintf(buffer, get_relay_template(), "input", get_id_seq(), 
-		myaddr, peer_public_key_str, srcaddr, "0xdada", plain_text, "");
+		myaddr, msg.public_key, srcaddr, "0xdada", plain_text, "");
 
 	int n;
 	n = sendto(di->sockfd, (const char *)buffer, strlen(buffer),
@@ -177,61 +135,6 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 	printf("Relay forwarded %d bytes, %s\n", n, buffer);
-}
-
-int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
-		   char *plain_text, char *extra)
-{
-	char buffer[MAXLINE];
-	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
-	uint8_t peer_public_key[KSLEN];
-
-	crypto_ctx_t *cctx = get_my_cctx();
-
-	fromhex(peer_public_key, KSLEN, 16, peer_pub);
-
-	crypto_x25519(cctx->shared_secret, cctx->secret_key, peer_public_key);
-
-	memset((void *)cipher_text, 0, sizeof(cipher_text));
-	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
-
-	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
-		    cctx->nonce, plain_text, strlen(plain_text));
-	fill_str(cctx);
-	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
-
-	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
-	       cipher_text_str);
-
-	char *bp = &buffer[14];
-	sprintf(bp, (char *)get_msg_template(), msgtype, get_id_seq(),
-		cctx->unique_id_str, cctx->signature_str,
-		cctx->signature_public_key_str, cctx->public_key_str,
-		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
-	printf("buffer with encrypted msg %s\n", buffer);
-
-	char myaddrbytes[7], dstaddrbytes[7];
-	memset((void *)myaddrbytes, 0, sizeof(myaddrbytes));
-	memset((void *)dstaddrbytes, 0, sizeof(dstaddrbytes));
-	sscanf(myaddr, "%02x:%02x:%02x:%02x:%02x:%02x",
-	       &myaddrbytes[0],
-	       &myaddrbytes[1],
-	       &myaddrbytes[2], &myaddrbytes[3], &myaddrbytes[4],
-	       &myaddrbytes[5]);
-	sscanf(dstaddr, "%02x:%02x:%02x:%02x:%02x:%02x", &dstaddrbytes[0],
-	       &dstaddrbytes[1], &dstaddrbytes[2], &dstaddrbytes[3],
-	       &dstaddrbytes[4], &dstaddrbytes[5]);
-
-	fill_ether_header((char *)buffer, (char *)myaddrbytes,
-			  (char *)dstaddrbytes);
-
-	if (pcap_sendpacket(get_adhandle(), buffer, strlen(bp) + 14) != 0) {
-		printf("error sending the packet\n");
-		return -1;
-	}
-	printf("sent %d, %s\n", strlen(bp)+14, bp);
-	return 1;
 }
 
 int run_relay(int port, int devnum, char *address)

@@ -40,7 +40,6 @@ typedef struct {
 	uint8_t secret_key[KSLEN];
 	uint8_t public_key[KSLEN];
 	uint8_t signature_public_key[KSLEN];
-	uint8_t shared_secret[KSLEN];
 	uint8_t unique_id[KSLEN];
 	uint8_t signature[SIGLEN];
 	uint8_t mac[MAC_LEN];
@@ -66,7 +65,7 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf);
 int get_id_seq();
 void get_unique_id(crypto_ctx_t * ctx, int *idval, int idval_size);
 int json_parse(char *instr, message_t * msg);
-void init_my_cctx();
+void init_my_cctx(int idval[], int idlen);
 int parse_msg(char *buffer, message_t * msg);
 int verify_signature(message_t * msg);
 pcap_t *pcap_dev_setup(pcap_if_t * d);
@@ -82,4 +81,7 @@ int get_num_devices();
 int show_devs();
 int startswith(char *str, char *prefix);
 int endswith(char *str, char *suffix);
+int msg_type_check(char *msgtype);
+int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype, char *plain_text, char *extra);
+int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype, char *plain_text, char *extra);
 #endif

@@ -35,19 +35,7 @@ int my_idval[] = {		//XXX
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-int msg_type_check(char *msgtype)
-{
-	char *valid_msgtypes[] = { "hello" };
-
-	int i;
-	for (i = 0; i < sizeof(valid_msgtypes) / sizeof(char *); i++) {
-		if (strcmp(valid_msgtypes[i], msgtype) == 0)
-			return 1;
-	}
-	return 0;
-}
-
-char *fill_response(char *buffer, char *peer_pub, char *msgtype,
+void fill_response(char *buffer, char *peer_pub, char *msgtype,
 		    char *plain_text, char *extra)
 {
 	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
@@ -55,15 +43,17 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 
 	crypto_ctx_t *cctx = get_my_cctx();
 
-	fromhex(peer_public_key, KSLEN, 16, peer_pub);
+	fromhex((char *)peer_public_key, KSLEN, 16, peer_pub);
 
-	crypto_x25519(cctx->shared_secret, cctx->secret_key, peer_public_key);
+	uint8_t shared_secret[KSLEN];
+	memset((void *)shared_secret, 0, sizeof(shared_secret));
+	crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
 
-	crypto_lock(cctx->mac, cipher_text, cctx->shared_secret,
-		    cctx->nonce, plain_text, strlen(plain_text));
+	crypto_lock(cctx->mac,(uint8_t *) cipher_text, shared_secret,
+		    cctx->nonce,(const uint8_t *) plain_text, strlen(plain_text));
 	fill_str(cctx);
 	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
@@ -78,17 +68,17 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 	printf("buffer %s\n", buffer);
 }
 
-int handle_msg(char *buffer)
+int handle_msg(char *packet)
 {
 	message_t msg;
 	char msgtype[MSLEN + 1];
 
-	if (parse_msg(buffer, &msg) < 0) {
+	if (parse_msg(packet+14, &msg) < 0) {
 		printf("cannot parse message\n");
 		return -3;
 	}
 
-	strcpy(msgtype, msg.type);
+	strcpy(msgtype,(char *) msg.type);
 
 	if (msg_type_check(msgtype) < 0) {
 		printf("invalid msg type %s\n", msgtype);
@@ -100,63 +90,10 @@ int handle_msg(char *buffer)
 		return -4;
 	}
 
-	strcat(msgtype, "-resp-enc");
-	fill_response(buffer, msg.public_key, msgtype,
-		      "secret config content 1 2 3", "extra plain text msg");
+	fill_response(packet+14, (char *)msg.public_key, msgtype,
+		      "save public_key", // XXXCMD
+		      "extra msg");
 
-	return 1;
-}
-
-int proc_sock(int port)
-{
-	int sockfd, n, salen;
-	struct sockaddr_in servaddr;
-	char buffer[MAXLINE];
-
-	init_wsock();
-
-	memset(&servaddr, 0, sizeof(servaddr));
-
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
-	servaddr.sin_addr.s_addr = INADDR_ANY;
-
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		print_error("socket creation failed");
-		return -2;
-	}
-	if (bind(sockfd, (const struct sockaddr *)&servaddr,
-		 sizeof(servaddr)) < 0) {
-		print_error("bind failed");
-		return -3;
-	}
-
-	for (;;) {
-		salen = sizeof(servaddr);
-		n = recvfrom(sockfd, (char *)buffer, MAXLINE, 0,
-			     (struct sockaddr *)&servaddr, &salen);
-		if (n < 0) {
-			print_error("recvfrom failed");
-			return -4;
-		}
-		buffer[n] = '\0';
-		printf("Received %d bytes, %s\n", n, buffer);
-
-		if (handle_msg(buffer) < 0) {
-			printf("error handling message\n");
-			return -9;
-		}
-		printf("sending %s\n", buffer);
-		n = sendto(sockfd, (const char *)buffer, strlen(buffer),
-			   0, (const struct sockaddr *)&servaddr,
-			   sizeof(servaddr));
-		if (n < 0) {
-			print_error("sendto failed");
-			fexit(1);
-		}
-		printf("Sent %d bytes, %s\n", n, buffer);
-	}
-	close(sockfd);
 	return 1;
 }
 
@@ -165,38 +102,40 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	       const u_char * pkt_data)
 {
 	const u_char *message;
-	u_char *pktbuf, packet[1500];
+	u_char packet[1500];
 	int i;
 	device_info_t *di = (device_info_t *) param;
 
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
-	printf("Got 0xdada len %d message %s\n", (int)strlen(message), message);
 
-	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
+	int mlen = strlen((const char *)message);
+
+	printf("Got 0xdada len %d message %s\n", mlen, message);
+
+	if (mlen < MINMSG || mlen >= MAXLINE) {
 		printf("agserve bad size\n");
 		return;
 	}
 	memset((void *)packet, 0, sizeof(packet));
-	pktbuf = packet + 14;
-	strcpy(pktbuf, message);
-	if (handle_msg(pktbuf) < 0) {
+	strcpy((char *)(packet + 14), (const char *)message);
+	if (handle_msg((char *)packet) < 0) {
 		printf("failed to handle msg\n");
 		return;
 	}
 
-	fill_ether_header((char *)packet, (char *)di->macaddr,
-			  (char *)&pkt_data[6]);
+	fill_ether_header((char *)packet, (unsigned char *)di->macaddr,
+			  (unsigned char *)&pkt_data[6]);
 
-	printf("sending pktbuf %s\n", pktbuf);
-	if (pcap_sendpacket(get_adhandle(), packet, strlen(pktbuf) + 14) != 0) {
+	printf("pcap sending %s\n", packet+14);
+	if (pcap_sendpacket(get_adhandle(), packet, strlen((char *)(packet+14)) + 14) != 0) {
 		printf("error sending the packet\n");
 		return;
 	}
 }
 
-int print_help(char *name)
+void print_help(char *name)
 {
 	printf("Usage: %s flags\n", name);
 	printf("-h       print help\n");
@@ -210,7 +149,7 @@ int print_help(char *name)
 int main(int argc, char *argv[])
 {
 	int c;
-	int use_sock = 0, port = PORT, list_ifs = 0;
+	int port = PORT, list_ifs = 0;
 	int devnum = -1;
 
 	opterr = 0;
@@ -223,9 +162,6 @@ int main(int argc, char *argv[])
 		case 'h':
 			print_help(argv[0]);
 			fexit(0);
-		case 's':
-			use_sock = 1;
-			break;
 		case 'l':
 			list_ifs = 1;
 			break;
@@ -255,59 +191,50 @@ int main(int argc, char *argv[])
 	}
 	init_my_cctx(my_idval, sizeof(my_idval) / sizeof(int));
 
-	if (use_sock) {
-		if (list_ifs) {
-			printf("ignoring -l\n");
-		}
-		if (proc_sock(port) < 0) {
-			printf("error processing socket\n");
-			fexit(1);
-		}
-	} else {
-		pcap_if_t *adevs;
-		adevs = init_alldevs();
-		if (!adevs) {
-			printf("cannot list network devices\n");
-			fexit(1);
-		}
-		if (get_num_devices() < 1) {
-			printf("no network devices\n");
-			fexit(1);
-		}
-		if (list_ifs) {
-			list_devs(adevs);
-			return 0;
-		}
-		if (devnum < 0) {
-			printf
-			    ("Choose the network device from the list, use -d\n");
-			printf("To list network devices use -l\n");
-			fexit(1);
-		}
-		if (devnum >= get_num_devices()) {
-			printf("network device index %d out of range\n",
-			       devnum);
-			fexit(1);
-		}
-
-		pcap_if_t *d;
-		int i;
-		for (d = adevs, i = 0; i != devnum && d; d = d->next, i++) ;
-
-		pcap_t *adh;
-		adh = pcap_dev_setup(d);
-		if (!adh) {
-			printf("cannot setup pcap device %s\n", d->name);
-			fexit(1);
-		}
-		unsigned char *macaddr = getmac(d->name);
-		device_info_t di;
-		di.d = d;
-		di.macaddr = macaddr;
-		pcap_loop(adh, 0, packet_handler, (unsigned char *)&di);
-
-		//pcap_freealldevs(alldevs);
-		//pcap_close(adhandle);
+	pcap_if_t *adevs;
+	adevs = init_alldevs();
+	if (!adevs) {
+		printf("cannot list network devices\n");
+		fexit(1);
 	}
+	if (get_num_devices() < 1) {
+		printf("no network devices\n");
+		fexit(1);
+	}
+	if (list_ifs) {
+		list_devs(adevs);
+		return 0;
+	}
+	if (devnum < 0) {
+		printf
+			("Choose the network device from the list, use -d\n");
+		printf("To list network devices use -l\n");
+		fexit(1);
+	}
+	if (devnum >= get_num_devices()) {
+		printf("network device index %d out of range\n",
+		       devnum);
+		fexit(1);
+	}
+
+	pcap_if_t *d;
+	int i;
+	for (d = adevs, i = 0; i != devnum && d; d = d->next, i++) ;
+
+	pcap_t *adh;
+	adh = pcap_dev_setup(d);
+	if (!adh) {
+		printf("cannot setup pcap device %s\n", d->name);
+		fexit(1);
+	}
+	char *macaddr = getmac(d->name);
+	device_info_t di;
+	di.d = d;
+	di.macaddr = (unsigned char *) macaddr;
+	pcap_loop(adh, 0, packet_handler, (unsigned char *)&di);
+
+	//pcap_freealldevs(alldevs);
+	//pcap_close(adhandle);
+
 	return 0;
 }

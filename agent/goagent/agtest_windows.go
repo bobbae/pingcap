@@ -119,12 +119,13 @@ func main() {
 }
 
 func sendPing(m Message) {
+    fmt.Println("sendPing")
 	var myaddr *C.char = C.CString(m.MyEthAddr)
 	var dstaddr *C.char = C.CString(m.SrcEthAddr)
 	var peerPub *C.char = C.CString(m.PeerPublicKey)
 	var msgtype *C.char = C.CString("ping")
-	var plainText *C.char = C.CString("plain text message")
-	var extra *C.char = C.CString("extra message")
+	var plainText *C.char = C.CString("send info") // XXXCMD
+	var extra *C.char = C.CString("extra msg in ping")
 	C.encrypt_send(myaddr, dstaddr, peerPub, msgtype, plainText, extra)
 	defer C.free(unsafe.Pointer(myaddr))
 	defer C.free(unsafe.Pointer(dstaddr))
