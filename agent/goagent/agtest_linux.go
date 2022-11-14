@@ -2,7 +2,7 @@
 package main
 
 /*
-#cgo CFLAGS: -I../.. -I. -g -std=c99 -DLINUX -I /usr/local/include
+#cgo CFLAGS: -I.. -I. -g -std=c99 -DCGO -DLINUX -I /usr/local/include
 #cgo LDFLAGS: -lpcap
 #include "common.c"
 #include "monocypher.c"

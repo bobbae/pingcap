@@ -1,15 +1,30 @@
+#ifndef __COMMON_H__
+#define __COMMON_H__ 1
+
 #define PORT	 28080
 #define MAXLINE 1460
+#define MAXBUF 4000
 #define MINMSG  200
 #define NUM_PARAMS 8
 #define MSLEN 64
 #define PLEN 128
+#define KSLEN 32
+#define SIGLEN 64
+#define NONCE_LEN 24
+#define MAC_LEN 16
+#define SLEN 256
 
 typedef struct {
-	int num_params;
 	uint8_t type[MSLEN + 1];
 	uint8_t id[MSLEN + 1];
-	uint8_t params[NUM_PARAMS][PLEN + 1];
+	uint8_t unique_id[PLEN + 1];
+	uint8_t signature[SLEN + 1];
+	uint8_t signature_public_key[PLEN + 1];
+	uint8_t public_key[PLEN + 1];
+	uint8_t mac[PLEN + 1];
+	uint8_t nonce[PLEN + 1];
+	uint8_t cipher_text[PLEN + 1];
+	uint8_t extra[PLEN + 1];	
 } message_t;
 
 #ifdef WIN32
@@ -20,11 +35,6 @@ typedef struct {
 #define print_error(msg) perror(msg)
 #endif
 
-#define KSLEN 32
-#define SIGLEN 64
-#define NONCE_LEN 24
-#define MAC_LEN 16
-#define SLEN 256
 
 typedef struct {
 	uint8_t secret_key[KSLEN];
@@ -32,8 +42,8 @@ typedef struct {
 	uint8_t signature_public_key[KSLEN];
 	uint8_t shared_secret[KSLEN];
 	uint8_t unique_id[KSLEN];
-	uint8_t mac[MAC_LEN];
 	uint8_t signature[SIGLEN];
+	uint8_t mac[MAC_LEN];
 	uint8_t nonce[NONCE_LEN];
 	char unique_id_str[SLEN], signature_str[SLEN];
 	char signature_public_key_str[SLEN], public_key_str[SLEN];
@@ -44,6 +54,8 @@ typedef struct {
 typedef struct {
 	pcap_if_t *d;
 	unsigned char *macaddr;
+	int sockfd;
+	struct sockaddr_in servaddr;
 } device_info_t;
 
 int fexit(int code);
@@ -68,3 +80,6 @@ crypto_ctx_t *get_my_cctx();
 pcap_t *get_adhandle();
 int get_num_devices();
 int show_devs();
+int startswith(char *str, char *prefix);
+int endswith(char *str, char *suffix);
+#endif

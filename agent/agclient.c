@@ -51,7 +51,7 @@ void fill_hello(char *buffer)
 
 int msg_type_check(char *msgtype)
 {
-	char *valid_msgtypes[] = { "helloresp" };
+	char *valid_msgtypes[] = { "hello-resp-enc" };
 
 	int i;
 	for (i = 0; i < sizeof(valid_msgtypes) / sizeof(char *); i++) {
@@ -77,29 +77,28 @@ int handle_msg(char *buffer)
 		printf("invalid msg type %s\n", msgtype);
 		return -5;
 	}
-	printf("buffer %s\n", buffer);
-	printf
-	    ("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
-	     msg.type, msg.id, msg.num_params, msg.params[0], msg.params[1],
-	     msg.params[2], msg.params[3], msg.params[4], msg.params[5],
-	     msg.params[6], msg.params[7]);
+	printf("handling message %s\n", buffer);
 
 	uint8_t peer_public_key[KSLEN];
 	crypto_ctx_t *cctx = get_my_cctx();
-	fromhex(peer_public_key, KSLEN, 16, msg.params[3]);
-	fromhex(cctx->mac, MAC_LEN, 16, msg.params[4]);
-	fromhex(cctx->nonce, NONCE_LEN, 16, msg.params[5]);
+	uint8_t mac[MAC_LEN];
+	uint8_t nonce[NONCE_LEN];
 
-	crypto_x25519(cctx->shared_secret, cctx->secret_key, peer_public_key);
+	fromhex(peer_public_key, KSLEN, 16, msg.public_key);
+	fromhex(mac, MAC_LEN, 16, msg.mac);
+	fromhex(nonce, NONCE_LEN, 16, msg.nonce);
+
+	uint8_t shared_secret[KSLEN];
+	crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
 
 	char cipher_text[MSLEN + 1], plain_text[MSLEN + 1];
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)plain_text, 0, sizeof(plain_text));
-	fromhex(cipher_text, MSLEN, 16, msg.params[6]);
+	fromhex(cipher_text, MSLEN, 16, msg.cipher_text);
 
 	if (crypto_unlock
-	    (plain_text, cctx->shared_secret, cctx->nonce, cctx->mac,
+	    (plain_text, shared_secret, nonce, mac,
 	     cipher_text, strlen(cipher_text))) {
 		printf("error: cannot decrypt\n");
 		return -9;
@@ -191,6 +190,7 @@ int send_hello_packet(char *packet, char *macaddr, char *src)
 		printf("error sending the packet\n");
 		return -1;
 	}
+	printf("sent %s\n", packet + 14);
 	return 1;
 }
 
@@ -249,6 +249,7 @@ int main(int argc, char *argv[])
 	int list_ifs = 0;
 	int devnum = -1;
 
+	opterr = 0;
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 	port = PORT;

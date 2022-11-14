@@ -89,16 +89,13 @@ namespace MONOCYPHER_CPP_NAMESPACE {
 	}
 
 	static u32 load24_le(const u8 s[3]) {
-		return (u32) s[0]
-		    | ((u32) s[1] << 8)
-		    | ((u32) s[2] << 16);
+		return (u32) s[0] | ((u32) s[1] << 8) | ((u32) s[2] << 16);
 	}
 
 	static u32 load32_le(const u8 s[4]) {
 		return (u32) s[0]
-		    | ((u32) s[1] << 8)
-		    | ((u32) s[2] << 16)
-		    | ((u32) s[3] << 24);
+		    | ((u32) s[1] << 8) | ((u32) s[2] << 16) | ((u32) s[3] <<
+								24);
 	}
 
 	static u64 load64_le(const u8 s[8]) {
@@ -986,8 +983,8 @@ namespace MONOCYPHER_CPP_NAMESPACE {
 					    blocks + gidx_next(&ctx);
 					block *current = blocks + current_block;
 					block *previous = current_block == 0
-					    ? blocks + nb_blocks - 1
-					    : blocks + current_block - 1;
+					    ? blocks + nb_blocks - 1 : blocks +
+					    current_block - 1;
 					// Apply compression function G,
 					// And copy it (or XOR it) to the current block.
 					copy_block(&tmp, previous);
@@ -2539,8 +2536,8 @@ namespace MONOCYPHER_CPP_NAMESPACE {
 	}
 
 	void crypto_check_init(crypto_check_ctx_abstract * ctx,
-			       const u8 signature[64],
-			       const u8 public_key[32]) {
+			       const u8 signature[64], const u8 public_key[32])
+	{
 		crypto_check_init_custom_hash(ctx, signature, public_key,
 					      &crypto_blake2b_vtable);
 	}
@@ -2954,7 +2951,8 @@ namespace MONOCYPHER_CPP_NAMESPACE {
 		do {
 			crypto_chacha20(buf, 0, 64, buf + 32, zero);
 			crypto_x25519_dirty_fast(pk, buf);	// or the "small" version
-		} while (crypto_curve_to_hidden(buf + 32, pk, buf[32]));
+		}
+		while (crypto_curve_to_hidden(buf + 32, pk, buf[32]));
 		// Note that the return value of crypto_curve_to_hidden() is
 		// independent from its tweak parameter.
 		// Therefore, buf[32] is not actually reused.  Either we loop one

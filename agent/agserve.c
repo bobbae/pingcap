@@ -71,7 +71,6 @@ char *fill_response(char *buffer, char *peer_pub, char *msgtype,
 	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
 	       cipher_text_str);
 
-	// XXX params: unique_id, signature, signature_public_key, public_key, mac, nonce, cipher_text, empty
 	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
 		cctx->unique_id_str, cctx->signature_str,
 		cctx->signature_public_key_str, cctx->public_key_str,
@@ -101,8 +100,8 @@ int handle_msg(char *buffer)
 		return -4;
 	}
 
-	strcat(msgtype, "resp");
-	fill_response(buffer, msg.params[3], msgtype,
+	strcat(msgtype, "-resp-enc");
+	fill_response(buffer, msg.public_key, msgtype,
 		      "secret config content 1 2 3", "extra plain text msg");
 
 	return 1;
@@ -161,8 +160,9 @@ int proc_sock(int port)
 	return 1;
 }
 
-void packet_handler(u_char * param, const struct pcap_pkthdr *header,
-		    const u_char * pkt_data)
+void
+packet_handler(u_char * param, const struct pcap_pkthdr *header,
+	       const u_char * pkt_data)
 {
 	const u_char *message;
 	u_char *pktbuf, packet[1500];

@@ -29,3 +29,6 @@ agclient: agclient.o monocypher.o common.o
 
 agserve: agserve.o monocypher.o common.o
 	gcc -o agserve$(EXE) agserve.o monocypher.o common.o $(LIBS)
+
+test: test.o common.o
+	gcc -o test$(EXE) test.o monocypher.o common.o $(LIBS)

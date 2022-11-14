@@ -64,7 +64,34 @@ void get_unique_id(crypto_ctx_t * ctx, int *idval, int idval_size)
 char *get_msg_template()
 {
 	return "{\"type\": \"%s\", \"id\": \"%d\", "
-	    " \"params\": [\"%s\", \"%s\", \"%s\", \"%s\",\"%s\",\"%s\",\"%s\",\"%s\" ] }";
+	    " \"uniqueId\": \"%s\", \"signature\": \"%s\", "
+	    " \"signaturePublicKey\": \"%s\", \"publicKey\": \"%s\", "
+	    " \"mac\": \"%s\", \"nonce\": \"%s\", "
+	    " \"cipherText\": \"%s\", \"extra\": \"%s\" }";
+}
+
+char *get_relay_template()
+{
+	return "{\"type\": \"%s\", \"id\": \"%d\", "
+	    " \"myEthAddr\": \"%s\", \"peerPublicKey\": \"%s\", "
+	    " \"srcEthAddr\": \"%s\", \"etherType\": \"%s\", "
+	    " \"plainText\": \"%s\", "
+	    " \"extra\": \"%s\" }";
+}
+
+int startswith(char *str, char *prefix)
+{
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
+int endswith(char *str, char *suffix)
+{
+	int slen = strlen(str);
+	int suffixlen = strlen(suffix);
+
+	if (suffixlen > slen)
+		return -1;
+	return strcmp(str + slen - suffixlen, suffix) == 0;
 }
 
 int fillin_secret_key(crypto_ctx_t * ctx)
@@ -171,12 +198,14 @@ int json_parse(char *instr, message_t * msg)
 	jsmn_parser p;
 	jsmntok_t t[128];	/* XXX max 128 tokens */
 
+	printf("parsing json %s\n", instr);
 	jsmn_init(&p);
 	r = jsmn_parse(&p, instr, strlen(instr), t, sizeof(t) / sizeof(t[0]));
 	if (r < 0) {
 		printf("Failed to parse JSON: %d\n", r);
 		return -1;
 	}
+
 	memset((void *)msg, 0, sizeof(*msg));
 
 	if (r < 1 || t[0].type != JSMN_OBJECT) {
@@ -191,42 +220,82 @@ int json_parse(char *instr, message_t * msg)
 			if (slen < MSLEN) {
 				strncpy(msg->type, instr + t[i].start, slen);
 			}
+			printf("type %s\n", msg->type);
 		} else if (jsoneq(instr, &t[i], "id") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < MSLEN) {
 				strncpy(msg->id, instr + t[i].start, slen);
 			}
-		} else if (jsoneq(instr, &t[i], "params") == 0) {
-			if (t[i + 1].type != JSMN_ARRAY) {
-				continue;
+			printf("id %s\n", msg->id);					} else if (jsoneq(instr, &t[i], "uniqueId") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->unique_id, instr + t[i].start,
+					slen);
 			}
-			for (j = 0; j < t[i + 1].size && j < NUM_PARAMS; j++) {
-				jsmntok_t *g = &t[i + j + 2];
-				slen = g->end - g->start;
-				//printf("j %d slen %d\n", j, slen);
-				if (slen < SLEN) {
-					strncpy(msg->params[j],
-						instr + g->start, slen);
-				} else {
-					printf("slen too long %d\n", slen);
-				}
-				msg->num_params++;
+
+			printf("uniqueId %s\n", msg->unique_id);
+		} else if (jsoneq(instr, &t[i], "signature") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < SLEN) {
+				strncpy(msg->signature, instr + t[i].start,
+					slen);
 			}
-			i += t[i + 1].size + 1;
+			printf("signature %s\n", msg->signature);
+		} else if (jsoneq(instr, &t[i], "signaturePublicKey") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->signature_public_key,
+					instr + t[i].start, slen);
+			}
+			printf("signature_public_key %s\n", msg->signature_public_key);
+		} else if (jsoneq(instr, &t[i], "publicKey") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->public_key, instr + t[i].start,
+					slen);
+			}
+			printf("publicKey %s\n", msg->public_key);
+		} else if (jsoneq(instr, &t[i], "mac") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->mac, instr + t[i].start, slen);
+			}
+			printf("mac %s\n", msg->mac);
+		} else if (jsoneq(instr, &t[i], "nonce") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->nonce, instr + t[i].start, slen);
+			}
+			printf("nonce %s\n", msg->nonce);
+		} else if (jsoneq(instr, &t[i], "cipherText") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->cipher_text, instr + t[i].start,
+					slen);
+			}
+			printf("cipher_text %s\n", msg->cipher_text);
+		} else if (jsoneq(instr, &t[i], "extra") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->extra, instr + t[i].start, slen);
+			}
+			printf("extra %s\n", msg->extra);
 		} else {
 			printf("Unexpected key: %.*s\n", t[i].end - t[i].start,
 			       instr + t[i].start);
 		}
 	}
-	/*
-	   printf("type %s id %s\n", msg->type, msg->id);
-	   for (j = 0; j < msg->num_params; j++) {
-	   printf("%d: %s\n", j, msg->params[j]);
-	   }
-	 */
 
-	return msg->num_params;
+	return i;
 }
 
 void init_my_cctx(int idval[], int idlen)
@@ -277,12 +346,7 @@ int parse_msg(char *buffer, message_t * msg)
 		//printf("cannot parse message\n");
 		return -3;
 	}
-	/*
-	   printf("msg type %s id %s num_params %d params %s %s %s %s %s %s %s %s\n",
-	   msg.type, msg.id, msg.num_params,
-	   msg.params[0], msg.params[1], msg.params[2], msg.params[3],
-	   msg.params[4], msg.params[5], msg.params[6], msg.params[7]);
-	 */
+
 	return 1;
 }
 
@@ -291,13 +355,14 @@ int verify_signature(message_t * msg)
 	crypto_ctx_t cctx;
 
 	memset((void *)&cctx, 0, sizeof(cctx));
-	fromhex(cctx.unique_id, KSLEN, 16, msg->params[0]);
-	fromhex(cctx.signature, SIGLEN, 16, msg->params[1]);
-	fromhex(cctx.signature_public_key, KSLEN, 16, msg->params[2]);
+	fromhex(cctx.unique_id, KSLEN, 16, msg->unique_id);
+	fromhex(cctx.signature, SIGLEN, 16, msg->signature);
+	fromhex(cctx.signature_public_key, KSLEN, 16,
+		msg->signature_public_key);
 
 	if (crypto_check
-	    (cctx.signature, cctx.signature_public_key, cctx.unique_id,
-	     KSLEN)) {
+	    (cctx.signature, cctx.signature_public_key, cctx.unique_id, KSLEN))
+	{
 		printf("signature is corrupt\n");
 		return -9;
 	}
@@ -420,8 +485,12 @@ int show_devs()
 {
 	pcap_if_t *adevs;
 	adevs = init_alldevs();
-
+	if (!adevs) {
+		printf("cannot list network devices\n");
+		return -1;
+	}
 	list_devs(adevs);
+	return 0;
 }
 
 int list_devs(pcap_if_t * adevs)
