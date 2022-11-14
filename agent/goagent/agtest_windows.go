@@ -103,6 +103,7 @@ func main() {
 				fmt.Println("Tick at", t)
 				devList.Range(func(k, v interface{}) bool {
 					fmt.Println(k, v)
+					sendPing(v.(Message))
 					return true
 				})
 			}
@@ -115,4 +116,20 @@ func main() {
 	done <- true
 
 	fmt.Println("exit")
+}
+
+func sendPing(m Message) {
+	var myaddr *C.char = C.CString(m.MyEthAddr)
+	var dstaddr *C.char = C.CString(m.SrcEthAddr)
+	var peerPub *C.char = C.CString(m.PeerPublicKey)
+	var msgtype *C.char = C.CString("ping")
+	var plainText *C.char = C.CString("plain text message")
+	var extra *C.char = C.CString("extra message")
+	C.encrypt_send(myaddr, dstaddr, peerPub, msgtype, plainText, extra)
+	defer C.free(unsafe.Pointer(myaddr))
+	defer C.free(unsafe.Pointer(dstaddr))
+	defer C.free(unsafe.Pointer(peerPub))
+	defer C.free(unsafe.Pointer(msgtype))
+	defer C.free(unsafe.Pointer(plainText))
+	defer C.free(unsafe.Pointer(extra))
 }

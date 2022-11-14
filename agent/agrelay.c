@@ -84,7 +84,7 @@ void
 packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	       const u_char * pkt_data)
 {
-	const u_char *message;
+	u_char *message;
 	int i;
 	device_info_t *di = (device_info_t *) param;
 	char buffer[MAXBUF];
@@ -92,13 +92,14 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
-	printf("Got 0xdada len %d message %s\n", (int)strlen(message), message);
 
-	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
-		printf("bad size\n");
+	int mlen = strlen(message);
+	if (mlen < MINMSG || mlen >= MAXLINE) {
+
+		printf("agrelay packet_handler, bad size %d\n", mlen);
 		return;
 	}
-	printf("message %d, %s\n", strlen(message), message);
+	printf("message %d, %s\n", mlen, message);
 
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
@@ -229,7 +230,7 @@ int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
 		printf("error sending the packet\n");
 		return -1;
 	}
-	printf("sent %d, %s\n", bp);
+	printf("sent %d, %s\n", strlen(bp)+14, bp);
 	return 1;
 }
 

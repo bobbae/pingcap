@@ -190,7 +190,7 @@ int send_hello_packet(char *packet, char *macaddr, char *src)
 		printf("error sending the packet\n");
 		return -1;
 	}
-	printf("sent %s\n", packet + 14);
+	printf("sent %d, %s\n", strlen(packet + 14) + 14, packet + 14);
 	return 1;
 }
 
@@ -206,7 +206,7 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
-		printf("bad size\n");
+		printf("agclient bad size\n");
 		return;
 	}
 
@@ -345,6 +345,7 @@ int main(int argc, char *argv[])
 
 		char packet[1500];
 		unsigned char *macaddr = getmac(d->name);
+		memset((void *)packet, 0, sizeof(packet));
 		if (send_hello_packet(packet, macaddr, get_bogus_mac()) < 0) {
 			printf("cannot send hello packet\n");
 			fexit(1);

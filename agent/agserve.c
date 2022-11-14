@@ -175,7 +175,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	printf("Got 0xdada len %d message %s\n", (int)strlen(message), message);
 
 	if (strlen(message) < MINMSG || strlen(message) >= MAXLINE) {
-		printf("bad size\n");
+		printf("agserve bad size\n");
 		return;
 	}
 	memset((void *)packet, 0, sizeof(packet));
