@@ -70,13 +70,19 @@ char *get_msg_template()
 	    " \"cipherText\": \"%s\", \"extra\": \"%s\" }";
 }
 
+char *get_plain_template()
+{
+	return
+	    "{\"type\": \"%s\", \"publicKey\": \"%s\", \"plainText\": \"%s\", "
+	    "  \"extra\": \"%s\" }";
+}
+
 char *get_relay_template()
 {
 	return "{\"type\": \"%s\", \"id\": \"%d\", "
 	    " \"myEthAddr\": \"%s\", \"peerPublicKey\": \"%s\", "
 	    " \"srcEthAddr\": \"%s\", \"etherType\": \"%s\", "
-	    " \"plainText\": \"%s\", "
-	    " \"extra\": \"%s\" }";
+	    " \"plainText\": \"%s\", " " \"extra\": \"%s\" }";
 }
 
 int startswith(char *str, char *prefix)
@@ -154,7 +160,7 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 		} else if (byte >= 'A' && byte <= 'F') {	// XXX lowercase 'a' 'f'
 			byte = byte - 'A' + 10;
 		} else {
-			printf("fromhex: Invalid input\n");
+			printf("error: fromhex invalid input\n");
 			return -1;
 		}
 		i++;
@@ -162,7 +168,7 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 		if ((i % 2) == 0) {
 			if (j > numlen) {
 				printf
-				    ("fromhex: numbers array not big enough %d %d\n",
+				    ("error: fromhex numbers array not big enough %d %d\n",
 				     j, numlen);
 				return -1;
 			}
@@ -203,7 +209,7 @@ int msg_type_check(char *msgtype)
 }
 
 int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
-		   char *plain_text, char *extra)
+		 char *plain_text, char *extra)
 {
 	char buffer[MAXLINE];
 
@@ -219,8 +225,8 @@ int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
 	       &dstaddrbytes[1], &dstaddrbytes[2], &dstaddrbytes[3],
 	       &dstaddrbytes[4], &dstaddrbytes[5]);
 
-	fill_ether_header((char *)buffer, (char *)myaddrbytes,
-			  (char *)dstaddrbytes);
+	fill_ether_header((char *)buffer, (unsigned char *)myaddrbytes,
+			  (unsigned char *)dstaddrbytes);
 
 	return encrypt_send_packet(buffer, peer_pub, msgtype,
 				   plain_text, extra);
@@ -232,7 +238,8 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
 	crypto_ctx_t *cctx = get_my_cctx();
 	uint8_t peer_public_key[KSLEN];
-	printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",msgtype, peer_pub, plain_text);
+
+	//printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",msgtype, peer_pub, plain_text);
 
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
 
@@ -243,7 +250,7 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
 	tohex(shared_secret, KSLEN, 16, shared_secret_str);
 
-	printf("encrypting with shared_secret %s peer_pub %s\n", shared_secret_str, peer_public_key);
+	//printf("encrypting with shared_secret %s peer_pub %s\n", shared_secret_str, peer_public_key);
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
@@ -254,24 +261,22 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	//printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
-	       cipher_text_str);
+	//printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str), cipher_text_str);
 
 	char *bp = &buffer[14];
 	sprintf(bp, (char *)get_msg_template(), msgtype, get_id_seq(),
 		cctx->unique_id_str, cctx->signature_str,
 		cctx->signature_public_key_str, cctx->public_key_str,
 		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
-	printf("pcap send encrypted msg %s\n", buffer);
+	//printf("pcap send encrypted msg %s\n", buffer);
 
 	if (pcap_sendpacket(get_adhandle(), buffer, strlen(bp) + 14) != 0) {
-		printf("error sending the packet\n");
+		printf("error: sending encrypted msg\n");
 		return -1;
 	}
-	printf("sent %d, %s\n", strlen(bp)+14, bp);
+	//printf("sent encrypted msg %d, %s\n", strlen(bp)+14, bp);
 	return 1;
 }
-
 
 int json_parse(char *instr, message_t * msg)
 {
@@ -280,18 +285,18 @@ int json_parse(char *instr, message_t * msg)
 	jsmn_parser p;
 	jsmntok_t t[128];	/* XXX max 128 tokens */
 
-	printf("parsing json %s\n", instr);
+	//printf("parsing json %s\n", instr);
 	jsmn_init(&p);
 	r = jsmn_parse(&p, instr, strlen(instr), t, sizeof(t) / sizeof(t[0]));
 	if (r < 0) {
-		printf("Failed to parse JSON: %d\n", r);
+		printf("error: failed to parse JSON: %d\n", r);
 		return -1;
 	}
 
 	memset((void *)msg, 0, sizeof(*msg));
 
 	if (r < 1 || t[0].type != JSMN_OBJECT) {
-		printf("Object expected\n");
+		printf("error: JSON object expected\n");
 		return -1;
 	}
 
@@ -302,22 +307,22 @@ int json_parse(char *instr, message_t * msg)
 			if (slen < MSLEN) {
 				strncpy(msg->type, instr + t[i].start, slen);
 			}
-			printf("type %s\n", msg->type);
+			//printf("msgtype %s\n", msg->type);
 		} else if (jsoneq(instr, &t[i], "id") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < MSLEN) {
 				strncpy(msg->id, instr + t[i].start, slen);
 			}
-			printf("id %s\n", msg->id);					} else if (jsoneq(instr, &t[i], "uniqueId") == 0) {
+			//printf("id %s\n", msg->id);                                   
+		} else if (jsoneq(instr, &t[i], "uniqueId") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->unique_id, instr + t[i].start,
 					slen);
 			}
-
-			printf("uniqueId %s\n", msg->unique_id);
+			//printf("uniqueId %s\n", msg->unique_id);
 		} else if (jsoneq(instr, &t[i], "signature") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -325,7 +330,7 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->signature, instr + t[i].start,
 					slen);
 			}
-			printf("signature %s\n", msg->signature);
+			//printf("signature %s\n", msg->signature);
 		} else if (jsoneq(instr, &t[i], "signaturePublicKey") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -333,7 +338,7 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->signature_public_key,
 					instr + t[i].start, slen);
 			}
-			printf("signature_public_key %s\n", msg->signature_public_key);
+			//printf("signature_public_key %s\n", msg->signature_public_key);
 		} else if (jsoneq(instr, &t[i], "publicKey") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -341,21 +346,21 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->public_key, instr + t[i].start,
 					slen);
 			}
-			printf("publicKey %s\n", msg->public_key);
+			//printf("publicKey %s\n", msg->public_key);
 		} else if (jsoneq(instr, &t[i], "mac") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->mac, instr + t[i].start, slen);
 			}
-			printf("mac %s\n", msg->mac);
+			//printf("mac %s\n", msg->mac);
 		} else if (jsoneq(instr, &t[i], "nonce") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->nonce, instr + t[i].start, slen);
 			}
-			printf("nonce %s\n", msg->nonce);
+			//printf("nonce %s\n", msg->nonce);
 		} else if (jsoneq(instr, &t[i], "cipherText") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -363,17 +368,25 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->cipher_text, instr + t[i].start,
 					slen);
 			}
-			printf("cipher_text %s\n", msg->cipher_text);
+			//printf("cipher_text %s\n", msg->cipher_text);
 		} else if (jsoneq(instr, &t[i], "extra") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->extra, instr + t[i].start, slen);
 			}
-			printf("extra %s\n", msg->extra);
+			//printf("extra %s\n", msg->extra);
+		} else if (jsoneq(instr, &t[i], "plainText") == 0) {
+			i++;
+			slen = t[i].end - t[i].start;
+			if (slen < PLEN) {
+				strncpy(msg->plain_text, instr + t[i].start,
+					slen);
+			}
+			//printf("extra %s\n", msg->extra);
 		} else {
-			printf("Unexpected key: %.*s\n", t[i].end - t[i].start,
-			       instr + t[i].start);
+			printf("error: unexpected JSON key: %.*s\n",
+			       t[i].end - t[i].start, instr + t[i].start);
 		}
 	}
 
@@ -412,11 +425,12 @@ void fill_str(crypto_ctx_t * cctx)
 	tohex(cctx->mac, MAC_LEN, 16, cctx->mac_str);
 	tohex(cctx->nonce, NONCE_LEN, 16, cctx->nonce_str);
 
-	printf
-	    ("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
-	     cctx->unique_id_str, cctx->signature_str,
-	     cctx->signature_public_key_str, cctx->public_key_str,
-	     cctx->mac_str, cctx->nonce_str);
+	/* printf
+	   ("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
+	   cctx->unique_id_str, cctx->signature_str,
+	   cctx->signature_public_key_str, cctx->public_key_str,
+	   cctx->mac_str, cctx->nonce_str);
+	 */
 }
 
 int parse_msg(char *buffer, message_t * msg)
@@ -424,8 +438,8 @@ int parse_msg(char *buffer, message_t * msg)
 	if (!buffer || !msg)
 		return -1;
 
-	printf("parsing msg %s\n", buffer);
-	
+	//printf("parsing msg %s\n", buffer);
+
 	memset((void *)msg, 0, sizeof(*msg));
 
 	if (json_parse(buffer, msg) < 0) {
@@ -449,10 +463,10 @@ int verify_signature(message_t * msg)
 	if (crypto_check
 	    (cctx.signature, cctx.signature_public_key, cctx.unique_id, KSLEN))
 	{
-		printf("signature is corrupt\n");
+		printf("error: signature is corrupt\n");
 		return -9;
 	}
-	printf("signature is verified\n");
+	//printf("signature is verified\n");
 	return 1;
 }
 
@@ -472,14 +486,14 @@ pcap_t *pcap_dev_setup(pcap_if_t * d)
 	if ((adhandle =
 	     pcap_open_live(d->name, 65536, 1, 1000, errbuf)) == NULL) {
 		fprintf(stderr,
-			"\nUnable to open the adapter. %s is not supported by Pcap\n",
+			"\nerror: Unable to open the adapter. %s is not supported by Pcap\n",
 			d->name);
 		return 0;
 	}
 
 	if (pcap_datalink(adhandle) != DLT_EN10MB) {
 		fprintf(stderr,
-			"\nThis program works only on Ethernet networks.\n");
+			"\nerror: This program works only on Ethernet networks.\n");
 		return 0;
 	}
 
@@ -487,11 +501,11 @@ pcap_t *pcap_dev_setup(pcap_if_t * d)
 
 	if (pcap_compile(adhandle, &fcode, packet_filter, 1, netmask) < 0) {
 		fprintf(stderr,
-			"\nUnable to compile the packet filter. Check the syntax.\n");
+			"\nerror: Unable to compile the packet filter. Check the syntax.\n");
 		return 0;
 	}
 	if (pcap_setfilter(adhandle, &fcode) < 0) {
-		fprintf(stderr, "\nError setting the filter.\n");
+		fprintf(stderr, "\nerror: can't the filter.\n");
 		return 0;
 	}
 	return adhandle;
@@ -506,7 +520,7 @@ pcap_if_t *init_alldevs()
 		return alldevs;
 
 	if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-		printf("Error in pcap_findalldevs: %s\n", errbuf);
+		printf("error: pcap_findalldevs: %s\n", errbuf);
 		return 0;
 	}
 	alldevs_initialized = 1;
@@ -572,7 +586,7 @@ int show_devs()
 	pcap_if_t *adevs;
 	adevs = init_alldevs();
 	if (!adevs) {
-		printf("cannot list network devices\n");
+		printf("error: cannot list network devices\n");
 		return -1;
 	}
 	list_devs(adevs);
@@ -604,17 +618,20 @@ int list_devs(pcap_if_t * adevs)
 	}
 
 	if (i == 0) {
-		printf("\nNo interfaces found! Make sure Pcap is installed.\n");
+		printf
+		    ("\nerror: No interfaces found! Make sure pcap is installed.\n");
 		return -1;
 	}
 }
 
 void fill_ether_header(char *packet, unsigned char *src, unsigned char *dst)
 {
-	printf
-	    ("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
-	     dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], src[0], src[1],
-	     src[2], src[3], src[4], src[5]);
+	/*
+	   printf
+	   ("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
+	   dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], src[0], src[1],
+	   src[2], src[3], src[4], src[5]);
+	 */
 	packet[0] = dst[0];
 	packet[1] = dst[1];
 	packet[2] = dst[2];

@@ -4,7 +4,7 @@
 #define PORT	 28080
 #define MAXLINE 1460
 #define MAXBUF 4000
-#define MINMSG  200
+#define MINMSG  50
 #define NUM_PARAMS 8
 #define MSLEN 64
 #define PLEN 128
@@ -24,6 +24,7 @@ typedef struct {
 	uint8_t mac[PLEN + 1];
 	uint8_t nonce[PLEN + 1];
 	uint8_t cipher_text[PLEN + 1];
+	uint8_t plain_text[PLEN + 1];
 	uint8_t extra[PLEN + 1];	
 } message_t;
 
@@ -84,4 +85,5 @@ int endswith(char *str, char *suffix);
 int msg_type_check(char *msgtype);
 int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype, char *plain_text, char *extra);
 int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype, char *plain_text, char *extra);
+char *get_plain_template();
 #endif

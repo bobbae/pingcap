@@ -51,5 +51,5 @@ int main()
 	msgtype = "hello-resp-enc";
 	if (endswith(msgtype, "-enc")) {
 		printf("%s endswith -enc\n", msgtype);
-	}	
+	}
 }

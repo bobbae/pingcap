@@ -32,11 +32,12 @@ typedef unsigned char u_char;
 #include "monocypher.h"
 #include "common.h"
 
+unsigned char *my_macaddr;
+
 int my_idval[] = {		//XXX
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
-
 
 void
 packet_handler(u_char * param, const struct pcap_pkthdr *header,
@@ -53,21 +54,20 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 
 	int mlen = strlen(message);
 	if (mlen < MINMSG || mlen >= MAXLINE) {
-
-		printf("agrelay packet_handler, bad size %d\n", mlen);
+		printf("error: agrelay packet_handler, bad size %d\n", mlen);
 		return;
 	}
 	printf("agrelay packet_handler received message %d, %s\n", mlen, message);
 
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
-		printf("can't parse msg\n");
+		printf("error: can't parse msg\n");
 		return;
 	}
 	char msgtype[MSLEN + 1];
 	strcpy(msgtype, msg.type);
 	if (msg_type_check(msgtype) < 0) {
-		printf("invalid msg type %s\n", msgtype);
+		printf("error: invalid msg type %s\n", msgtype);
 		return;
 	}
 
@@ -84,11 +84,11 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		uint8_t mac[MAC_LEN];
 		uint8_t nonce[NONCE_LEN];
 
-        fromhex((char *)mac, MAC_LEN, 16,(char *) msg.mac);
-        fromhex((char *)nonce, NONCE_LEN, 16, (char *)msg.nonce);
+		fromhex((char *)mac, MAC_LEN, 16, (char *)msg.mac);
+		fromhex((char *)nonce, NONCE_LEN, 16, (char *)msg.nonce);
 
 		uint8_t shared_secret[KSLEN];
-        memset((void *)shared_secret, 0, sizeof(shared_secret));
+		memset((void *)shared_secret, 0, sizeof(shared_secret));
 		crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
 
 		char cipher_text[MSLEN + 1];
@@ -97,19 +97,19 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		memset((void *)plain_text, 0, sizeof(plain_text));
 		fromhex(cipher_text, MSLEN, 16, msg.cipher_text);
 
-        uint8_t shared_secret_str[SLEN];
-        memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
-        tohex((char *)shared_secret, KSLEN, 16,(char *) shared_secret_str);
-        printf("agrelay: decrypting with shared_secret %s peer_pub %s\n", shared_secret_str, msg.public_key);
+		uint8_t shared_secret_str[SLEN];
+		memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
+		tohex((char *)shared_secret, KSLEN, 16,
+		      (char *)shared_secret_str);
+		//printf("agrelay: decrypting with shared_secret %s peer_pub %s\n", shared_secret_str, msg.public_key);
 
 		if (crypto_unlock
 		    (plain_text, shared_secret, nonce, mac,
 		     cipher_text, strlen(cipher_text))) {
-			printf("agrelay error: cannot decrypt\n");
+			printf("error: agrelay cannot decrypt\n");
 			return;
 		}
-
-		printf("agrelay decrypted: %s\n", plain_text);
+		//printf("agrelay decrypted: %s\n", plain_text);
 	}
 
 	char myaddr[MSLEN], srcaddr[MSLEN];
@@ -122,8 +122,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		pkt_data[7], pkt_data[8], pkt_data[9], pkt_data[10],
 		pkt_data[11]);
 
-
-	sprintf(buffer, get_relay_template(), "input", get_id_seq(), 
+	sprintf(buffer, get_relay_template(), "input", get_id_seq(),
 		myaddr, msg.public_key, srcaddr, "0xdada", plain_text, "");
 
 	int n;
@@ -131,10 +130,48 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		   0, (const struct sockaddr *)&di->servaddr,
 		   sizeof(di->servaddr));
 	if (n < 0) {
-		print_error("sendto failed");
+		print_error("sendto failed to forward to Go");
 		return;
 	}
-	printf("Relay forwarded %d bytes, %s\n", n, buffer);
+	//printf("relay forwarded %d bytes, %s\n", n, buffer);
+}
+
+int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
+{
+	char buffer[1500];
+
+	memset((void *)buffer, 0, sizeof(buffer));
+
+	printf("plain_text %s\n", plain_text);
+	crypto_ctx_t *cctx = get_my_cctx();
+
+	char dstaddrbytes[7];
+	sscanf(dstaddr, "%02x:%02x:%02x:%02x:%02x:%02x", &dstaddrbytes[0],
+	       &dstaddrbytes[1], &dstaddrbytes[2], &dstaddrbytes[3],
+	       &dstaddrbytes[4], &dstaddrbytes[5]);
+
+	fill_ether_header((char *)buffer, (char *)my_macaddr,
+			  (char *)dstaddrbytes);
+
+	char public_key_str[SLEN];
+	tohex(cctx->public_key, KSLEN, 16, public_key_str);
+	printf("plain_text %s\n", plain_text);
+	sprintf(&buffer[14], (char *)get_plain_template(),
+		msgtype, public_key_str, plain_text, extra);
+
+	if (pcap_sendpacket(get_adhandle(), buffer, 1500) != 0) {
+		printf("error: sending plain msg\n");
+		return -1;
+	}
+	printf("sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
+	printf
+	    ("header %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	     buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
+	     buffer[3] & 0xff, buffer[4] & 0xff, buffer[5] & 0xff,
+	     buffer[6] & 0xff, buffer[7] & 0xff, buffer[8] & 0xff,
+	     buffer[9] & 0xff, buffer[10] & 0xff, buffer[11] & 0xff,
+	     buffer[12] & 0xff, buffer[13] & 0xff);
+	return 1;
 }
 
 int run_relay(int port, int devnum, char *address)
@@ -149,7 +186,7 @@ int run_relay(int port, int devnum, char *address)
 	adevs = init_alldevs();
 
 	if (!adevs) {
-		printf("cannot list network devices\n");
+		printf("error: cannot list network devices\n");
 		return -1;
 	}
 
@@ -180,7 +217,7 @@ int run_relay(int port, int devnum, char *address)
 	init_my_cctx(my_idval, sizeof(my_idval) / sizeof(int));
 
 	if (get_num_devices() < 1) {
-		printf("no network devices\n");
+		printf("error: no network devices\n");
 		return -4;
 	}
 
@@ -190,7 +227,7 @@ int run_relay(int port, int devnum, char *address)
 		return -5;
 	}
 	if (devnum >= get_num_devices()) {
-		printf("network device index %d out of range\n", devnum);
+		printf("error: network device index %d out of range\n", devnum);
 		return -6;
 	}
 
@@ -201,15 +238,19 @@ int run_relay(int port, int devnum, char *address)
 	pcap_t *adh;
 	adh = pcap_dev_setup(d);
 	if (!adh) {
-		printf("cannot setup pcap device %s\n", d->name);
+		printf("error: cannot setup pcap device %s\n", d->name);
 		return -7;
 	}
-	unsigned char *macaddr = getmac(d->name);
+
+	my_macaddr = getmac(d->name);
+
 	device_info_t di;
+
 	di.d = d;
-	di.macaddr = macaddr;
+	di.macaddr = my_macaddr;
 	di.sockfd = sockfd;
 	di.servaddr = servaddr;
+
 	pcap_loop(adh, 0, packet_handler, (unsigned char *)&di);
 	// should not reach here
 
@@ -218,7 +259,7 @@ int run_relay(int port, int devnum, char *address)
 	return 0;
 }
 
-int print_help(char *name)
+void print_help(char *name)
 {
 	printf("Usage: %s flags\n", name);
 	printf("-h       print help\n");

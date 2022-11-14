@@ -36,7 +36,7 @@ int my_idval[] = {		//XXX
 };
 
 void fill_response(char *buffer, char *peer_pub, char *msgtype,
-		    char *plain_text, char *extra)
+		   char *plain_text, char *extra)
 {
 	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
 	uint8_t peer_public_key[KSLEN];
@@ -52,20 +52,20 @@ void fill_response(char *buffer, char *peer_pub, char *msgtype,
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
 
-	crypto_lock(cctx->mac,(uint8_t *) cipher_text, shared_secret,
-		    cctx->nonce,(const uint8_t *) plain_text, strlen(plain_text));
+	crypto_lock(cctx->mac, (uint8_t *) cipher_text, shared_secret,
+		    cctx->nonce, (const uint8_t *)plain_text,
+		    strlen(plain_text));
 	fill_str(cctx);
-	printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
+	//printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str),
-	       cipher_text_str);
+	//printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str), cipher_text_str);
 
 	sprintf(buffer, (char *)get_msg_template(), msgtype, get_id_seq(),
 		cctx->unique_id_str, cctx->signature_str,
 		cctx->signature_public_key_str, cctx->public_key_str,
 		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
-	printf("buffer %s\n", buffer);
+	//printf("buffer %s\n", buffer);
 }
 
 int handle_msg(char *packet)
@@ -73,25 +73,24 @@ int handle_msg(char *packet)
 	message_t msg;
 	char msgtype[MSLEN + 1];
 
-	if (parse_msg(packet+14, &msg) < 0) {
-		printf("cannot parse message\n");
+	if (parse_msg(packet + 14, &msg) < 0) {
+		printf("error: cannot parse message\n");
 		return -3;
 	}
 
-	strcpy(msgtype,(char *) msg.type);
+	strcpy(msgtype, (char *)msg.type);
 
 	if (msg_type_check(msgtype) < 0) {
-		printf("invalid msg type %s\n", msgtype);
+		printf("error: invalid msg type %s\n", msgtype);
 		return -5;
 	}
 
 	if (verify_signature(&msg) < 0) {
-		printf("cannot verify signature\n");
+		printf("error: cannot verify signature\n");
 		return -4;
 	}
 
-	fill_response(packet+14, (char *)msg.public_key, msgtype,
-		      "save public_key", // XXXCMD
+	fill_response(packet + 14, (char *)msg.public_key, msgtype, "save public_key",	// XXXCMD
 		      "extra msg");
 
 	return 1;
@@ -112,25 +111,26 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 
 	int mlen = strlen((const char *)message);
 
-	printf("Got 0xdada len %d message %s\n", mlen, message);
+	//printf("Got 0xdada len %d message %s\n", mlen, message);
 
 	if (mlen < MINMSG || mlen >= MAXLINE) {
-		printf("agserve bad size\n");
+		printf("error: agserve bad size\n");
 		return;
 	}
 	memset((void *)packet, 0, sizeof(packet));
 	strcpy((char *)(packet + 14), (const char *)message);
 	if (handle_msg((char *)packet) < 0) {
-		printf("failed to handle msg\n");
+		printf("error: failed to handle msg\n");
 		return;
 	}
 
 	fill_ether_header((char *)packet, (unsigned char *)di->macaddr,
 			  (unsigned char *)&pkt_data[6]);
 
-	printf("pcap sending %s\n", packet+14);
-	if (pcap_sendpacket(get_adhandle(), packet, strlen((char *)(packet+14)) + 14) != 0) {
-		printf("error sending the packet\n");
+	//printf("pcap sending %s\n", packet+14);
+	if (pcap_sendpacket
+	    (get_adhandle(), packet, strlen((char *)(packet + 14)) + 14) != 0) {
+		printf("error: failed to pcap_sendpacket\n");
 		return;
 	}
 }
@@ -174,18 +174,18 @@ int main(int argc, char *argv[])
 		case '?':
 			if (optopt == 'p' || optopt == 'd')
 				fprintf(stderr,
-					"Option %c requires an argument.\n",
+					"error: option %c requires an argument.\n",
 					optopt);
 			else if (isprint(optopt))
-				fprintf(stderr, "unknown option -%c.\n",
+				fprintf(stderr, "error: unknown option -%c.\n",
 					optopt);
 			else
 				fprintf(stderr,
-					"unknown option character %c.\n",
+					"error: unknown option character %c.\n",
 					optopt);
 			fexit(1);
 		default:
-			fprintf(stderr, "unknown option %c.\n", c);
+			fprintf(stderr, "error: unknown option %c.\n", c);
 			fexit(1);
 		}
 	}
@@ -194,11 +194,11 @@ int main(int argc, char *argv[])
 	pcap_if_t *adevs;
 	adevs = init_alldevs();
 	if (!adevs) {
-		printf("cannot list network devices\n");
+		printf("error: cannot list network devices\n");
 		fexit(1);
 	}
 	if (get_num_devices() < 1) {
-		printf("no network devices\n");
+		printf("error: no network devices\n");
 		fexit(1);
 	}
 	if (list_ifs) {
@@ -206,14 +206,12 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	if (devnum < 0) {
-		printf
-			("Choose the network device from the list, use -d\n");
+		printf("Choose the network device from the list, use -d\n");
 		printf("To list network devices use -l\n");
 		fexit(1);
 	}
 	if (devnum >= get_num_devices()) {
-		printf("network device index %d out of range\n",
-		       devnum);
+		printf("error: network device index %d out of range\n", devnum);
 		fexit(1);
 	}
 
@@ -224,13 +222,13 @@ int main(int argc, char *argv[])
 	pcap_t *adh;
 	adh = pcap_dev_setup(d);
 	if (!adh) {
-		printf("cannot setup pcap device %s\n", d->name);
+		printf("error: cannot setup pcap device %s\n", d->name);
 		fexit(1);
 	}
 	char *macaddr = getmac(d->name);
 	device_info_t di;
 	di.d = d;
-	di.macaddr = (unsigned char *) macaddr;
+	di.macaddr = (unsigned char *)macaddr;
 	pcap_loop(adh, 0, packet_handler, (unsigned char *)&di);
 
 	//pcap_freealldevs(alldevs);
