@@ -44,9 +44,21 @@ char *get_bogus_mac()
 	dstaddr[3] = 0x0a;
 	dstaddr[4] = 0x0b;
 	dstaddr[5] = 0x0c;
+
 	return dstaddr;
 }
 
+char *get_bcast_mac()
+{
+	static char dstaddr[6];
+	dstaddr[0] = 0xff;
+	dstaddr[1] = 0xff;
+	dstaddr[2] = 0xff;
+	dstaddr[3] = 0xff;
+	dstaddr[4] = 0xff;
+	dstaddr[5] = 0xff;
+	return dstaddr;
+}
 
 void fill_hello(char *buffer)
 {
@@ -82,7 +94,7 @@ int send_hello_packet()
 {
 	char packetbuf[1500];
 	char *packet = &packetbuf[0];
-	char *src_macaddr = get_bogus_mac();
+	char *src_macaddr = get_bcast_mac();
 
 	memset((void *)packet, 0, sizeof(packet));
 

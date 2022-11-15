@@ -20,15 +20,14 @@ INCFILES=common.h jsmn.h monocypher.h
 
 agclient.o: agclient.c $(INCFILES)
 
-agserve.o: agserve.c $(INCFILES)
-
 common.o: common.c $(INCFILES)
 
 agclient: agclient.o monocypher.o common.o
 	gcc -o agclient$(EXE) agclient.o monocypher.o common.o $(LIBS)
 
-agserve: agserve.o monocypher.o common.o
-	gcc -o agserve$(EXE) agserve.o monocypher.o common.o $(LIBS)
+.PHONY:
+agserve: agrelay.c $(INCFILES)  agserve/agserv_linux.go agserve/agserv_windows.go
+	cd agserve; go build -a -o agserve$(EXE)
 
 test: test.o common.o
 	gcc -o test$(EXE) test.o monocypher.o common.o $(LIBS)
