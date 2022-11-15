@@ -157,8 +157,10 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 		uint8_t byte = *inbuf++;	// XXX check inbuf overflow
 		if (byte >= '0' && byte <= '9') {
 			byte = byte - '0';
-		} else if (byte >= 'A' && byte <= 'F') {	// XXX lowercase 'a' 'f'
+		} else if (byte >= 'A' && byte <= 'F') {
 			byte = byte - 'A' + 10;
+		} else if (byte >= 'a' && byte <= 'f') {
+			byte = byte - 'a' + 10;
 		} else {
 			printf("error: fromhex invalid input\n");
 			return -1;
