@@ -47,7 +47,7 @@ func main() {
 		os.Exit(0)
 	}
 	if *devNum == -1 {
-        fmt.Println("error: device number required.")
+		fmt.Println("error: device number required.")
 		os.Exit(1)
 	}
 
@@ -58,7 +58,7 @@ func main() {
 		udpAddr := *address + ":" + strconv.Itoa(*port)
 		sock, err := net.ListenPacket("udp", udpAddr)
 		if err != nil {
-            fmt.Println("error: can't listen to UDP socket")
+			fmt.Println("error: can't listen to UDP socket")
 			os.Exit(1)
 		}
 		defer sock.Close()
@@ -68,7 +68,7 @@ func main() {
 			//fmt.Println("Waiting for UDP input")
 			rlen, _, err := sock.ReadFrom(buffer)
 			if err != nil {
-                fmt.Println("error: UDP read error", err)
+				fmt.Println("error: UDP read error", err)
 				continue
 			}
 			//fmt.Println("UDP read bytes", rlen, "from", addr, "message", string(buffer[:rlen]))
@@ -76,7 +76,7 @@ func main() {
 			var message Message
 
 			if err := json.Unmarshal(buffer[:rlen], &message); err != nil {
-                fmt.Println("error: can't parse json message", string(buffer[:rlen]))
+				fmt.Println("error: can't parse json message", string(buffer[:rlen]))
 				continue
 			}
 			//fmt.Println("message", message)
@@ -106,28 +106,28 @@ func main() {
 				return
 			case t := <-ticker.C:
 
-                    var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
-                    var msgtype *C.char = C.CString("scan")
-                    var plainText *C.char = C.CString("send hello") // XXXCMD
-                    var extra *C.char = C.CString("extra msg in scan")
+				var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
+				var msgtype *C.char = C.CString("scan")
+				var plainText *C.char = C.CString("send hello") // XXXCMD
+				var extra *C.char = C.CString("extra msg in scan")
 
-                    fmt.Println("sending plain text", t)
-                    C.plain_send(dstaddr, msgtype, plainText, extra)
+				fmt.Println("sending plain text", t)
+				C.plain_send(dstaddr, msgtype, plainText, extra)
 
-                    defer C.free(unsafe.Pointer(dstaddr))
-                    defer C.free(unsafe.Pointer(msgtype))
-                    defer C.free(unsafe.Pointer(plainText))
-                    defer C.free(unsafe.Pointer(extra))
-                    /*
+				defer C.free(unsafe.Pointer(dstaddr))
+				defer C.free(unsafe.Pointer(msgtype))
+				defer C.free(unsafe.Pointer(plainText))
+				defer C.free(unsafe.Pointer(extra))
+				/*
 
-                    // send ping to each known client that
-                    // has sent us a hello in the past
-                    devList.Range(func(k, v interface{}) bool {
-                        //fmt.Println(k, v)
-                        sendPing(v.(Message))
-                        return true
-                    })
-                    */
+				   // send ping to each known client that
+				   // has sent us a hello in the past
+				   devList.Range(func(k, v interface{}) bool {
+				       //fmt.Println(k, v)
+				       sendPing(v.(Message))
+				       return true
+				   })
+				*/
 			}
 		}
 	}()
@@ -141,7 +141,7 @@ func main() {
 }
 
 func sendPing(m Message) {
-    //fmt.Println("sendPing")
+	//fmt.Println("sendPing")
 
 	var myaddr *C.char = C.CString(m.MyEthAddr)
 	var peerPub *C.char = C.CString(m.PeerPublicKey)
