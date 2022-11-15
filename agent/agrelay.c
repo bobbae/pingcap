@@ -57,7 +57,8 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		printf("error: agrelay packet_handler, bad size %d\n", mlen);
 		return;
 	}
-	printf("agrelay packet_handler received message %d, %s\n", mlen, message);
+	printf("agrelay packet_handler received message %d, %s\n", mlen,
+	       message);
 
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {

@@ -27,7 +27,7 @@ agclient: agclient.o monocypher.o common.o
 
 .PHONY:
 agserve: agrelay.c $(INCFILES)  agserve/agserv_linux.go agserve/agserv_windows.go
-	cd agserve; go build -a -o agserve$(EXE)
+	cd agserve; go build -a -o ../agserve$(EXE)
 
 test: test.o common.o
 	gcc -o test$(EXE) test.o monocypher.o common.o $(LIBS)

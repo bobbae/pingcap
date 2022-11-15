@@ -25,7 +25,7 @@ typedef struct {
 	uint8_t nonce[PLEN + 1];
 	uint8_t cipher_text[PLEN + 1];
 	uint8_t plain_text[PLEN + 1];
-	uint8_t extra[PLEN + 1];	
+	uint8_t extra[PLEN + 1];
 } message_t;
 
 #ifdef WIN32
@@ -35,7 +35,6 @@ typedef struct {
 #ifdef LINUX
 #define print_error(msg) perror(msg)
 #endif
-
 
 typedef struct {
 	uint8_t secret_key[KSLEN];
@@ -49,7 +48,6 @@ typedef struct {
 	char signature_public_key_str[SLEN], public_key_str[SLEN];
 	char nonce_str[MSLEN + 1], mac_str[MSLEN + 1];
 } crypto_ctx_t;
-
 
 typedef struct {
 	pcap_if_t *d;
@@ -74,8 +72,8 @@ pcap_if_t *init_alldevs();
 char *getmac(char *name);
 int list_devs(pcap_if_t * adevs);
 void init_wsock();
-void fill_ether_header(char *header,unsigned char *src, unsigned char *dst);
-void fill_str(crypto_ctx_t *cctx);
+void fill_ether_header(char *header, unsigned char *src, unsigned char *dst);
+void fill_str(crypto_ctx_t * cctx);
 crypto_ctx_t *get_my_cctx();
 pcap_t *get_adhandle();
 int get_num_devices();
@@ -83,7 +81,9 @@ int show_devs();
 int startswith(char *str, char *prefix);
 int endswith(char *str, char *suffix);
 int msg_type_check(char *msgtype);
-int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype, char *plain_text, char *extra);
-int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype, char *plain_text, char *extra);
+int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
+		 char *plain_text, char *extra);
+int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
+			char *plain_text, char *extra);
 char *get_plain_template();
 #endif

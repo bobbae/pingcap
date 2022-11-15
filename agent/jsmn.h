@@ -414,9 +414,8 @@ extern "C" {
 							    -1
 							    && tokens[i].end ==
 							    -1) {
-								parser->
-								    toksuper =
-								    i;
+								parser->toksuper
+								    = i;
 								break;
 							}
 						}
