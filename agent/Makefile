@@ -31,3 +31,8 @@ agserve: agrelay.c $(INCFILES)  agserve/agserv_linux.go agserve/agserv_windows.g
 
 test: test.o common.o
 	gcc -o test$(EXE) test.o monocypher.o common.o $(LIBS)
+
+OBJ1=dumqtt.o mqtt.o mqtt_pal.o
+
+dumqtt: $(OBJ1)
+	gcc  $(CFLAGS) -o dumqtt$(EXE) $(OBJ1)  $(LIBS)
