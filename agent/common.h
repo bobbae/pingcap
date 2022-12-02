@@ -54,6 +54,7 @@ typedef struct {
 	unsigned char *macaddr;
 	int sockfd;
 	struct sockaddr_in servaddr;
+	char *host;
 } device_info_t;
 
 int fexit(int code);

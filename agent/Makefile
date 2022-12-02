@@ -1,8 +1,8 @@
-default: agclient agserve
+default: agclient agserve dumqtt
 CC=gcc
 ifeq ($(OS),Windows_NT)
 DEBUG=-g
-INC=-I C:/WpdPack/Include
+INC=-I C:/WpdPack/Include -I.
 CFLAGS=-std=c99 -DWIN32 $(INC) $(DEBUG)
 LIBS=-L C:/Win10pcap/x64 -lwpcap -liphlpapi -lws2_32 
 EXE=.exe
@@ -11,7 +11,7 @@ ifeq ($(shell uname),Linux)
 DEBUG=-g
 EXE=
 LIBS=-lpcap
-INC=-I /usr/local/include
+INC=-I /usr/local/include -I.
 CFLAGS=-std=c99 -DLINUX $(INC) $(DEBUG)
 endif
 endif
@@ -22,8 +22,8 @@ agclient.o: agclient.c $(INCFILES)
 
 common.o: common.c $(INCFILES)
 
-agclient: agclient.o monocypher.o common.o
-	gcc -o agclient$(EXE) agclient.o monocypher.o common.o $(LIBS)
+agclient: agclient.o monocypher.o common.o 
+	gcc -o agclient$(EXE) agclient.o monocypher.o common.o  $(LIBS)
 
 .PHONY:
 agserve: agrelay.c $(INCFILES)  agserve/agserv_linux.go agserve/agserv_windows.go

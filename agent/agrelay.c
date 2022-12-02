@@ -27,7 +27,6 @@ typedef unsigned short u_short;
 typedef unsigned char u_char;
 #endif
 
-#include "getopt.h"
 #include "pcap.h"
 #include "monocypher.h"
 #include "common.h"
@@ -48,6 +47,12 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	device_info_t *di = (device_info_t *) param;
 	char buffer[MAXBUF];
 
+	// XXX terrible hack to clear buffer passed from pcap
+	memset(buffer,0,sizeof(buffer)); // XXX
+	memcpy(buffer, pkt_data, 1460); // XXX
+	memset(pkt_data,0,1460); // XXX
+	pkt_data = &buffer[0]; // XXX
+
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
@@ -59,10 +64,10 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	}
 	printf("agrelay packet_handler received message %d, %s\n", mlen,
 	       message);
-
+	
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
-		printf("error: can't parse msg\n");
+		printf("error: can't parse msg %d %s\n", mlen, message);
 		return;
 	}
 	char msgtype[MSLEN + 1];
@@ -102,6 +107,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
 		tohex((char *)shared_secret, KSLEN, 16,
 		      (char *)shared_secret_str);
+
 		//printf("agrelay: decrypting with shared_secret %s peer_pub %s\n", shared_secret_str, msg.public_key);
 
 		if (crypto_unlock
@@ -110,7 +116,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 			printf("error: agrelay cannot decrypt\n");
 			return;
 		}
-		//printf("agrelay decrypted: %s\n", plain_text);
+		printf("agrelay decrypted: %s\n", plain_text);
 	}
 
 	char myaddr[MSLEN], srcaddr[MSLEN];
@@ -123,6 +129,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		pkt_data[7], pkt_data[8], pkt_data[9], pkt_data[10],
 		pkt_data[11]);
 
+	memset(buffer, 0, sizeof(buffer));
 	sprintf(buffer, get_relay_template(), "input", get_id_seq(),
 		myaddr, msg.public_key, srcaddr, "0xdada", plain_text, "");
 
@@ -130,6 +137,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	n = sendto(di->sockfd, (const char *)buffer, strlen(buffer),
 		   0, (const struct sockaddr *)&di->servaddr,
 		   sizeof(di->servaddr));
+
 	if (n < 0) {
 		print_error("sendto failed to forward to Go");
 		return;
@@ -143,7 +151,7 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 
 	memset((void *)buffer, 0, sizeof(buffer));
 
-	printf("plain_text %s\n", plain_text);
+	//printf("plain_text %s\n", plain_text);
 	crypto_ctx_t *cctx = get_my_cctx();
 
 	char dstaddrbytes[7];
@@ -156,7 +164,6 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 
 	char public_key_str[SLEN];
 	tohex(cctx->public_key, KSLEN, 16, public_key_str);
-	printf("plain_text %s\n", plain_text);
 	sprintf(&buffer[14], (char *)get_plain_template(),
 		msgtype, public_key_str, plain_text, extra);
 
@@ -164,14 +171,15 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 		printf("error: sending plain msg\n");
 		return -1;
 	}
-	printf("sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
+	/* printf("sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
 	printf
 	    ("header %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
 	     buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
 	     buffer[3] & 0xff, buffer[4] & 0xff, buffer[5] & 0xff,
 	     buffer[6] & 0xff, buffer[7] & 0xff, buffer[8] & 0xff,
 	     buffer[9] & 0xff, buffer[10] & 0xff, buffer[11] & 0xff,
-	     buffer[12] & 0xff, buffer[13] & 0xff);
+	     buffer[12] & 0xff, buffer[13] & 0xff); */
+
 	return 1;
 }
 
@@ -280,44 +288,34 @@ int main(int argc, char *argv[])
 	int devnum = -1;
 	char *address = 0;
 
-	opterr = 0;
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
 
-	while ((c = getopt(argc, argv, "hslp:d:a:")) != -1) {
-		switch (c) {
-		case 'h':
+	int i = 1;
+	while (i < argc) {
+		if (strcmp(argv[i], "-h") == 0) {
 			print_help(argv[0]);
-			fexit(0);
-		case 'a':
-			address = optarg;
-			break;
-		case 'l':
+		} else if (strcmp(argv[i], "-l") == 0) {
 			list_ifs = 1;
-			break;
-		case 'p':
-			port = atoi(optarg);
-			break;
-		case 'd':
-			devnum = atoi(optarg);
-			break;
-		case '?':
-			if (optopt == 'p' || optopt == 'd')
-				fprintf(stderr,
-					"Option %c requires an argument.\n",
-					optopt);
-			else if (isprint(optopt))
-				fprintf(stderr, "unknown option -%c.\n",
-					optopt);
+		} else if (strcmp(argv[i], "-a") == 0) {
+			if (++i < argc)
+				address = argv[i];
 			else
-				fprintf(stderr,
-					"unknown option character %c.\n",
-					optopt);
-			fexit(1);
-		default:
-			fprintf(stderr, "unknown option %c.\n", c);
-			fexit(1);
+				print_help(argv[0]);
+		} else if (strcmp(argv[i], "-p") == 0) {
+			if (++i < argc)
+				port = atoi(argv[i]);
+			else
+				print_help(argv[0]);
+		} else if (strcmp(argv[i], "-d") == 0) {
+			if (++i < argc)
+				devnum = atoi(argv[i]);
+			else
+				print_help(argv[0]);
+		} else {
+			print_help(argv[0]);
 		}
+		i++;
 	}
 
 	if (list_ifs) {

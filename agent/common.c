@@ -241,7 +241,8 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	crypto_ctx_t *cctx = get_my_cctx();
 	uint8_t peer_public_key[KSLEN];
 
-	//printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",msgtype, peer_pub, plain_text);
+	/* printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",
+	       msgtype, peer_pub, plain_text); */
 
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
 
@@ -270,13 +271,12 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 		cctx->unique_id_str, cctx->signature_str,
 		cctx->signature_public_key_str, cctx->public_key_str,
 		cctx->mac_str, cctx->nonce_str, cipher_text_str, extra);
-	//printf("pcap send encrypted msg %s\n", buffer);
 
 	if (pcap_sendpacket(get_adhandle(), buffer, strlen(bp) + 14) != 0) {
 		printf("error: sending encrypted msg\n");
 		return -1;
 	}
-	//printf("sent encrypted msg %d, %s\n", strlen(bp)+14, bp);
+	printf("sent encrypted msg %d, %s\n", strlen(bp)+14, bp);
 	return 1;
 }
 
@@ -291,7 +291,7 @@ int json_parse(char *instr, message_t * msg)
 	jsmn_init(&p);
 	r = jsmn_parse(&p, instr, strlen(instr), t, sizeof(t) / sizeof(t[0]));
 	if (r < 0) {
-		printf("error: failed to parse JSON: %d\n", r);
+		printf("error: failed to parse JSON: %d on %s\n", r, instr);
 		return -1;
 	}
 

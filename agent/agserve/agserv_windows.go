@@ -104,30 +104,30 @@ func main() {
 			select {
 			case <-done:
 				return
-			case t := <-ticker.C:
-
+			case  <-ticker.C:
+				// Demo: periodically ask agent to send hello message to us.
 				var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
 				var msgtype *C.char = C.CString("scan")
 				var plainText *C.char = C.CString("send hello") // XXXCMD
 				var extra *C.char = C.CString("extra msg in scan")
 
-				fmt.Println("sending plain text", t)
+				//fmt.Println("sending scan with plain text send hello")
 				C.plain_send(dstaddr, msgtype, plainText, extra)
 
 				defer C.free(unsafe.Pointer(dstaddr))
 				defer C.free(unsafe.Pointer(msgtype))
 				defer C.free(unsafe.Pointer(plainText))
 				defer C.free(unsafe.Pointer(extra))
-				/*
+				
 
-				   // send ping to each known client that
-				   // has sent us a hello in the past
-				   devList.Range(func(k, v interface{}) bool {
-				       //fmt.Println(k, v)
-				       sendPing(v.(Message))
-				       return true
-				   })
-				*/
+				// send ping to each known client that
+				// has sent us a hello in the past
+				devList.Range(func(k, v interface{}) bool {
+					//fmt.Println(k, v)
+					sendPing(v.(Message))
+					return true
+				})
+				
 			}
 		}
 	}()
@@ -150,6 +150,7 @@ func sendPing(m Message) {
 	var plainText *C.char = C.CString("send info") // XXXCMD
 	var extra *C.char = C.CString("extra msg in ping")
 
+	//fmt.Println("sending msg ping send info encrypted")
 	C.encrypt_send(myaddr, dstaddr, peerPub, msgtype, plainText, extra)
 
 	defer C.free(unsafe.Pointer(myaddr))

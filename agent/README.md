@@ -27,10 +27,3 @@ encode payload.
 
 Use very small crypto package, monocypher, to demo public key
 encryption in a embedded C program.
-
-## Use of very small getopt.h
-
-Use smallest getopt to avoid pulling in large libc version.
-
-
-

@@ -18,42 +18,72 @@ struct mqtt_client client;
 
 void publish_callback(void **unused, struct mqtt_response_publish *published);
 
+void print_help(char *name)
+{
+	printf("Usage: %s flags\n", name);
+	printf("-h print help\n");
+	printf("-a address   specify IP address of the server (test.mosquitto.org)\n");
+	printf("-p port      specify port of the server (1883)\n");
+	printf("-t topic     specify topic (datetime)\n");
+	printf("-m message   message to send (hello)\n");
+	printf("-d delay     specify delay in seconds between messages (0)\n");
+	printf("-l           continuous loop\n");
+	
+	fflush(stdout);
+	exit(1);
+}
+
 int main(int argc, const char *argv[])
 {
-	const char *addr;
-	const char *port;
-	const char *topic;
+	char *message = "hello";
+	char *topic ="datetime";
+	int loopit = 0;
+	int delay = 0;
 
-	if (argc > 1) {
-		addr = argv[1];
-	} else {
-		addr = "test.mosquitto.org";
-	}
-
-	if (argc > 2) {
-		port = argv[2];
-	} else {
-		port = "1883";
-	}
-	int portnum = atoi(port);
-
-	if (argc > 3) {
-		topic = argv[3];
-	} else {
-		topic = "datetime";
-	}
-
-	printf("Usage: %s addr port topic\n", argv[0]);
-	printf("default addr test.mosquitto.org\n");
-	printf("default port 1883\n");
-	printf("default topic datetime\n");
-
-	printf
-	    ("Will connect to MQTT broker at addr %s at port %s on topic %s\n",
-	     addr, port, topic);
+	int i = 1;
+	int port = 1883;
+	char *address =  "test.mosquitto.org";
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
+
+
+	while (i < argc) {
+		if (strcmp(argv[i], "-h") == 0) {
+			print_help(argv[0]);
+		} else if (strcmp(argv[i], "-l") == 0) {
+			loopit = 1;
+		} else if (strcmp(argv[i], "-m") == 0) {
+			if (++i < argc)
+				message = argv[i];
+			else
+				print_help(argv[0]);
+		} else if (strcmp(argv[i], "-d") == 0) {
+			if (++i < argc)
+				delay = atoi(argv[i]);
+			else
+				print_help(argv[0]);
+		} else if (strcmp(argv[i], "-a") == 0) {
+			if (++i < argc)
+				address = argv[i];
+			else
+				print_help(argv[0]);
+		} else if (strcmp(argv[i], "-t") == 0) {
+			if (++i < argc)
+				topic = argv[i];
+			else
+				print_help(argv[0]);
+		} else {
+			print_help(argv[0]);
+		}
+		i++;
+	}
+
+	
+	printf
+	    ("Will connect to MQTT broker at addr %s at port %d on topic %s\n",
+	     address, port, topic);
+
 
 #ifdef WIN32
 	WSADATA wsaData;
@@ -72,13 +102,13 @@ int main(int argc, const char *argv[])
 	}
 	struct hostent *host;
 	struct sockaddr_in sin;
-	host = gethostbyname(addr);
+	host = gethostbyname(address);
 	if (!host) {
 		perror("error: can't gethostbyname");
 		exit(1);
 	}
 	sin.sin_family = AF_INET;
-	sin.sin_port = htons(portnum);
+	sin.sin_port = htons(port);
 	sin.sin_addr.s_addr = *(long *)(host->h_addr_list[0]);
 	printf("%s\n", inet_ntoa(sin.sin_addr));
 
@@ -111,21 +141,10 @@ int main(int argc, const char *argv[])
 	char hostname[200];
 	gethostname(hostname, sizeof(hostname));
 	mqtt_subscribe(&client, topic, 0);
-	printf("%s is ready to begin publishing the time.\n", argv[0]);
-	for (;;) {
-		time_t timer;
-		time(&timer);
-		struct tm *tm_info = localtime(&timer);
-		char timebuf[26];
-		strftime(timebuf, 26, "%Y-%m-%d %H:%M:%S", tm_info);
-
-		char application_message[256];
-		snprintf(application_message, sizeof(application_message),
-			 "%s: The time is %s", hostname, timebuf);
-		printf("%s published : \"%s\"", argv[0], application_message);
-
-		mqtt_publish(&client, topic, application_message,
-			     strlen(application_message) + 1,
+	printf("subscribed to the topic %s\n", topic);
+	do {
+		mqtt_publish(&client, topic, message,
+			     strlen(message) + 1,
 			     MQTT_PUBLISH_QOS_0);
 
 		if (client.error != MQTT_OK) {
@@ -134,12 +153,12 @@ int main(int argc, const char *argv[])
 			exit(1);
 		}
 		mqtt_sync(&client);
-		sleep(5);
-	}
+		sleep(delay);
+	} while (loopit);
 
 	mqtt_sync(&client);
 
-	printf("\n%s disconnecting from %s\n", argv[0], addr);
+	printf("\n%s disconnecting from %s\n", argv[0], address);
 	sleep(1);
 
 	exit(0);
