@@ -661,3 +661,8 @@ void init_wsock()
 		print_error("WSAStartup failed");
 #endif
 }
+
+int run_cmd()
+{
+	
+}

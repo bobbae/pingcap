@@ -158,41 +158,17 @@ int send_hello_packet()
 	return 1;
 }
 
-int handle_command(char *packet, char *peer_public_key, char *cmd,
+int handle_command(char *packet, char *msgtype, char *peer_public_key, char *cmd,
 		   device_info_t * di)
 {
 	char buffer[MAXLINE];
 	memset(buffer, 0 , sizeof(buffer));
 	memcpy(buffer, packet, 14);
-	//printf("handle_command %s\n", cmd);
+	//printf("handle_command msgtype %s %s\n",msgtype, cmd);
 
-	/* commands are sent encrypted. Once decrpyted the command should 
-	   look like CLI command.  Some commands can be interpreted directly
-	   here, like "send xyz" kind of command.  Other commands can be
-	   something that gets run as shell command using existing
-	   utility programs that reside in the target device. For example,
-	   a command could be "run ifconfig -a" then we run that on device
-	   if the device has ifconfig command and return the output. 
-	   This allows using external commands to accomplish most tasks.
-	   Rather than expanding agent client program (this program) to
-	   do extra work.  You also want to run external program because
-	   you minimze crashes that can happen due to various features
-	   that need to be activated when configuring the device. If the
-	   configuration fails, agent must still continue, not crash. Only
-	   external command may crash.  The external commands may be custom
-	   made programs that accompany this agent program. Or they may
-	   already exist in the system.  Or they may be downloaded via this agent
-	   client.  To do that, we must support a command called "download" which
-	   will download a new binary to be installed and runnable as CLI command
-	   which can be run after being downloaded and installed on to the
-	   device via the agent running on that device. This allows for
-	   expanding agent capability in runtime and also ability to update
-	   parts of agent features over time. */
-	
 	if (strcmp(cmd, "send hello") == 0) {
 		return send_hello_packet();
 	}
-
 	if (strcmp(cmd, "send info") == 0) {
 		char *msgtype = "info";
 		char *extra = "extra info for bob is 123";
@@ -202,6 +178,28 @@ int handle_command(char *packet, char *peer_public_key, char *cmd,
 		return encrypt_send_packet(buffer, peer_public_key,
 						msgtype, "INFORMATION IS GOOD", extra);
 	}			
+	if (strcmp(msgtype, "cmd")==0) {
+#ifdef WIN32
+		FILE *fp = _popen(cmd, "r");
+#endif
+#ifdef LINUX
+		FILE *fp = popen(cmd, "r");
+#endif
+		if (fp == 0) {
+			printf("popen error\n");
+			return -1;
+		}
+		/*  TODO XXX do fgets() and return result as message */
+#ifdef WIN32
+		_pclose(fp);
+#endif
+#ifdef LINUX 
+		pclose(fp);
+#endif
+		printf("ran command %s\n", cmd);
+		
+		return 1;
+	}
 	
 	/* XXX here is where you can add more code to handle other commands */
 	printf("error: unknown cmd %s\n", cmd);
@@ -234,8 +232,7 @@ int handle_msg(char *packet, device_info_t * di)
 		/* printf("plain message text received type %s %s\n", msgtype,
 		       msg.plain_text); */
 		/* Should handle in handle_command(). */
-		handle_command(packet, (char *)msg.public_key, msg.plain_text, di);
-
+		handle_command(packet, msgtype,(char *)msg.public_key, msg.plain_text, di);
 		
 		return 1;
 	}
@@ -276,7 +273,7 @@ int handle_msg(char *packet, device_info_t * di)
 	printf("agclient decrypted: %s\n", plain_text);
 	
 	// handle decrypted msg and send packet reply
-	handle_command(packet, (char *)msg.public_key, plain_text, di);
+	handle_command(packet, msgtype, (char *)msg.public_key, plain_text, di);
 	return 1;
 }
 

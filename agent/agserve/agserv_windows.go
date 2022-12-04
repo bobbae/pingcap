@@ -1,4 +1,6 @@
+//go:build windows
 // +build windows
+
 package main
 
 /*
@@ -13,9 +15,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"html/template"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -35,6 +40,7 @@ type Message struct {
 var wg sync.WaitGroup
 
 var devList = sync.Map{}
+var cmd string
 
 func main() {
 	port := flag.Int("p", 28080, "port")
@@ -50,10 +56,11 @@ func main() {
 		fmt.Println("error: device number required.")
 		os.Exit(1)
 	}
-
-	wg.Add(2)
+	cmd = ""
 
 	go func() {
+		wg.Add(1)
+
 		defer wg.Done()
 		udpAddr := *address + ":" + strconv.Itoa(*port)
 		sock, err := net.ListenPacket("udp", udpAddr)
@@ -85,6 +92,8 @@ func main() {
 	}()
 
 	go func() {
+		wg.Add(1)
+
 		defer wg.Done()
 		var cstr *C.char = C.CString(*address)
 
@@ -104,7 +113,7 @@ func main() {
 			select {
 			case <-done:
 				return
-			case  <-ticker.C:
+			case <-ticker.C:
 				// Demo: periodically ask agent to send hello message to us.
 				var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
 				var msgtype *C.char = C.CString("scan")
@@ -118,17 +127,35 @@ func main() {
 				defer C.free(unsafe.Pointer(msgtype))
 				defer C.free(unsafe.Pointer(plainText))
 				defer C.free(unsafe.Pointer(extra))
-				
 
 				// send ping to each known client that
 				// has sent us a hello in the past
 				devList.Range(func(k, v interface{}) bool {
 					//fmt.Println(k, v)
-					sendPing(v.(Message))
+					if cmd != "" {
+						sendMessage(v.(Message), "cmd", cmd, "some extra")
+						cmd = ""
+						return true
+					}
+					sendMessage(v.(Message), "ping", "send info", "some extra")
 					return true
 				})
-				
 			}
+		}
+	}()
+
+	go func() {
+		wg.Add(1)
+
+		defer wg.Done()
+
+		http.HandleFunc("/cli", handleCommand)
+		address := ":9090"
+		fmt.Println("HTTP serving at", address)
+
+		err := http.ListenAndServe(address, nil) // setting listening port
+		if err != nil {
+			fmt.Println("error: HTTP ListenAndServe", err)
 		}
 	}()
 
@@ -140,15 +167,27 @@ func main() {
 	fmt.Println("exit")
 }
 
-func sendPing(m Message) {
+func handleCommand(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		r.ParseForm()
+		command := r.Form["command"]
+		cmd = strings.Join(command, " ")
+		fmt.Println("command", cmd)
+	}
+
+	t, _ := template.ParseFiles("cli.template")
+	t.Execute(w, nil)
+}
+
+func sendMessage(m Message, mtype string, msg string, exmsg string) {
 	//fmt.Println("sendPing")
 
 	var myaddr *C.char = C.CString(m.MyEthAddr)
 	var peerPub *C.char = C.CString(m.PeerPublicKey)
 	var dstaddr *C.char = C.CString(m.SrcEthAddr)
-	var msgtype *C.char = C.CString("ping")
-	var plainText *C.char = C.CString("send info") // XXXCMD
-	var extra *C.char = C.CString("extra msg in ping")
+	var msgtype *C.char = C.CString(mtype)
+	var plainText *C.char = C.CString(msg) // XXXCMD
+	var extra *C.char = C.CString(exmsg)
 
 	//fmt.Println("sending msg ping send info encrypted")
 	C.encrypt_send(myaddr, dstaddr, peerPub, msgtype, plainText, extra)
