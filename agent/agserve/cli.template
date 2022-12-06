@@ -1,0 +1,15 @@
+<html>
+    <head>
+    <title>Agent CLI</title>
+    </head>
+    <body>
+        <h1>Agent CLI</h1>
+
+        <div style="margin-left: 50px; margin-top: 50px" >
+            <form action="/cli" method="post">
+                Command:<input type="text" name="command" style="width: 50%">
+                <input type="submit" value="command">
+            </form>
+        </div>
+    </body>
+</html>
