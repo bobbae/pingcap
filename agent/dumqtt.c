@@ -143,15 +143,14 @@ int main(int argc, const char *argv[])
 	mqtt_subscribe(&client, topic, 0);
 	printf("subscribed to the topic %s\n", topic);
 	do {
-		mqtt_publish(&client, topic, message,
-			     strlen(message) + 1,
-			     MQTT_PUBLISH_QOS_0);
+        if (strcmp(message, "none") != 0) {
+            mqtt_publish(&client, topic, message, strlen(message) + 1, MQTT_PUBLISH_QOS_0);
 
-		if (client.error != MQTT_OK) {
-			fprintf(stderr, "error: %s\n",
-				mqtt_error_str(client.error));
-			exit(1);
-		}
+            if (client.error != MQTT_OK) {
+                fprintf(stderr, "error: %s\n", mqtt_error_str(client.error));
+                exit(1);
+            }
+        }
 		mqtt_sync(&client);
 		sleep(delay);
 	} while (loopit);

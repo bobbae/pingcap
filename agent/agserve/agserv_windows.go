@@ -12,6 +12,7 @@ package main
 */
 import "C"
 import (
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -37,16 +38,18 @@ type Message struct {
 	Extra         string `json:"extra"`
 }
 
-var wg sync.WaitGroup
 
-var devList = sync.Map{}
-var cmd string
+var cmdChan chan string
 
 func main() {
+	var wg sync.WaitGroup
+	var devList = sync.Map{}
+
 	port := flag.Int("p", 28080, "port")
 	devNum := flag.Int("d", -1, "device number")
 	listDev := flag.Bool("l", false, "list devices")
 	address := flag.String("a", "localhost", "udp server")
+	delay := flag.Int("t", 5, "time delay")
 	flag.Parse()
 	if *listDev {
 		C.show_devs()
@@ -56,10 +59,11 @@ func main() {
 		fmt.Println("error: device number required.")
 		os.Exit(1)
 	}
-	cmd = ""
+	cmdChan = make(chan string, 10)
+	wg.Add(1)
 
+	//get forwarded frame from C via UDP socket
 	go func() {
-		wg.Add(1)
 
 		defer wg.Done()
 		udpAddr := *address + ":" + strconv.Itoa(*port)
@@ -69,16 +73,16 @@ func main() {
 			os.Exit(1)
 		}
 		defer sock.Close()
-		fmt.Println("listening UDP at ", udpAddr)
+        fmt.Println("debug: listening UDP at ", udpAddr)
 		buffer := make([]byte, 10000)
 		for {
-			//fmt.Println("Waiting for UDP input")
+            //fmt.Println("debug: Waiting for UDP input")
 			rlen, _, err := sock.ReadFrom(buffer)
 			if err != nil {
 				fmt.Println("error: UDP read error", err)
 				continue
 			}
-			//fmt.Println("UDP read bytes", rlen, "from", addr, "message", string(buffer[:rlen]))
+            fmt.Println("debug: UDP read bytes", rlen, string(buffer[:rlen]))
 
 			var message Message
 
@@ -86,72 +90,82 @@ func main() {
 				fmt.Println("error: can't parse json message", string(buffer[:rlen]))
 				continue
 			}
-			//fmt.Println("message", message)
-			devList.Store(message.Id, message)
+            //fmt.Println("debug: add to devList message", message)
+			devList.Store(message.PeerPublicKey, message) // XXX pretender with stolen ID may inject a message?
 		}
 	}()
 
+	wg.Add(1)
+
+	//run C relay
 	go func() {
-		wg.Add(1)
 
 		defer wg.Done()
 		var cstr *C.char = C.CString(*address)
 
-		//fmt.Println("Calling C relay")
+        fmt.Println("debug: Calling C relay")
 
 		C.run_relay(C.int(*port), C.int(*devNum), cstr)
 
-		//fmt.Println("Finished C relay. Should not happen!")
+        fmt.Println("debug: Finished C relay. Should not happen!")
 		defer C.free(unsafe.Pointer(cstr))
 	}()
 
-	ticker := time.NewTicker(5000 * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(*delay * 1000) * time.Millisecond)
 	done := make(chan bool)
 
 	go func() {
 		for {
 			select {
 			case <-done:
+                fmt.Println("debug: timed sender done")
 				return
 			case <-ticker.C:
-				// Demo: periodically ask agent to send hello message to us.
-				var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
-				var msgtype *C.char = C.CString("scan")
-				var plainText *C.char = C.CString("send hello") // XXXCMD
-				var extra *C.char = C.CString("extra msg in scan")
-
-				//fmt.Println("sending scan with plain text send hello")
-				C.plain_send(dstaddr, msgtype, plainText, extra)
-
-				defer C.free(unsafe.Pointer(dstaddr))
-				defer C.free(unsafe.Pointer(msgtype))
-				defer C.free(unsafe.Pointer(plainText))
-				defer C.free(unsafe.Pointer(extra))
-
+				//fmt.Println("debug: ticker")
+				// XXX do some book keeping TODO
+			case inCmd := <-cmdChan:
+				numSent := 0
+				fmt.Println("inCmd",inCmd)
 				// send ping to each known client that
 				// has sent us a hello in the past
 				devList.Range(func(k, v interface{}) bool {
-					//fmt.Println(k, v)
-					if cmd != "" {
-						sendMessage(v.(Message), "cmd", cmd, "some extra")
-						cmd = ""
+                    //fmt.Println("debug: devList kv", k, v)
+					numSent++
+					if inCmd != "" {
+						fmt.Println("debug: inCmd", inCmd)
+					}
+					if inCmd == "ping" {
+						sendMessage(v.(Message), "ping", "send info", "some extra")
 						return true
 					}
-					sendMessage(v.(Message), "ping", "send info", "some extra")
+					if inCmd == "hello" {
+						sendHello()
+						return true
+					}
+					if strings.HasPrefix(inCmd, "!")  {
+						inCmd = inCmd[1:]
+						sEnc := base64.StdEncoding.EncodeToString([]byte(inCmd))
+                        fmt.Println("debug: sEnc", sEnc)
+						sendMessage(v.(Message), "cmd", sEnc, "some extra")
+						return true
+					} 
 					return true
 				})
+                //fmt.Println("debug: numSent",numSent)
 			}
 		}
 	}()
 
+	wg.Add(1)
+
+	// send CLI command from HTTP user
 	go func() {
-		wg.Add(1)
 
 		defer wg.Done()
-
+		//  form POST to  get user command to send to agent
 		http.HandleFunc("/cli", handleCommand)
 		address := ":9090"
-		fmt.Println("HTTP serving at", address)
+        fmt.Println("info: HTTP serving at", address)
 
 		err := http.ListenAndServe(address, nil) // setting listening port
 		if err != nil {
@@ -164,15 +178,20 @@ func main() {
 	ticker.Stop()
 	done <- true
 
-	fmt.Println("exit")
+    fmt.Println("info: program exit")
 }
 
 func handleCommand(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseForm()
 		command := r.Form["command"]
-		cmd = strings.Join(command, " ")
-		fmt.Println("command", cmd)
+		cmdLine := strings.Join(command, " ")
+		if len(cmdLine) >= 128 {
+			fmt.Println("error: cmdLine too long", len(cmdLine), cmdLine)
+			return
+		}
+		cmdChan <- cmdLine
+        fmt.Println("debug: handling POST command", cmdLine)
 	}
 
 	t, _ := template.ParseFiles("cli.template")
@@ -180,8 +199,7 @@ func handleCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendMessage(m Message, mtype string, msg string, exmsg string) {
-	//fmt.Println("sendPing")
-
+    fmt.Println("debug: sending message", mtype, msg, exmsg)
 	var myaddr *C.char = C.CString(m.MyEthAddr)
 	var peerPub *C.char = C.CString(m.PeerPublicKey)
 	var dstaddr *C.char = C.CString(m.SrcEthAddr)
@@ -189,11 +207,25 @@ func sendMessage(m Message, mtype string, msg string, exmsg string) {
 	var plainText *C.char = C.CString(msg) // XXXCMD
 	var extra *C.char = C.CString(exmsg)
 
-	//fmt.Println("sending msg ping send info encrypted")
 	C.encrypt_send(myaddr, dstaddr, peerPub, msgtype, plainText, extra)
 
 	defer C.free(unsafe.Pointer(myaddr))
 	defer C.free(unsafe.Pointer(peerPub))
+	defer C.free(unsafe.Pointer(dstaddr))
+	defer C.free(unsafe.Pointer(msgtype))
+	defer C.free(unsafe.Pointer(plainText))
+	defer C.free(unsafe.Pointer(extra))
+}
+
+func sendHello() {
+    fmt.Println("debug: send hello")
+	var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
+	var msgtype *C.char = C.CString("scan")
+	var plainText *C.char = C.CString("send hello") // XXXCMD
+	var extra *C.char = C.CString("extra msg in scan")
+
+	C.plain_send(dstaddr, msgtype, plainText, extra)
+
 	defer C.free(unsafe.Pointer(dstaddr))
 	defer C.free(unsafe.Pointer(msgtype))
 	defer C.free(unsafe.Pointer(plainText))

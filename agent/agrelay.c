@@ -48,9 +48,10 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	char buffer[MAXBUF];
 
 	// XXX terrible hack to clear buffer passed from pcap
+	printf("debug: caplen %d\n", header->caplen);
 	memset(buffer,0,sizeof(buffer)); // XXX
-	memcpy(buffer, pkt_data, 1460); // XXX
-	memset(pkt_data,0,1460); // XXX
+	memcpy(buffer, pkt_data, header->caplen); // XXX
+	memset(pkt_data,0, header->caplen); // XXX
 	pkt_data = &buffer[0]; // XXX
 
 	message = pkt_data + 14;
@@ -62,8 +63,8 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		printf("error: agrelay packet_handler, bad size %d\n", mlen);
 		return;
 	}
-	printf("agrelay packet_handler received message %d, %s\n", mlen,
-	       message);
+	/* printf("debug: agrelay packet_handler received message %d, %s\n", mlen,
+	       message); */
 	
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
@@ -77,7 +78,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 
-	char plain_text[MSLEN + 1];
+	char plain_text[SLEN + 1];
 	memset((void *)plain_text, 0, sizeof(plain_text));
 
 	crypto_ctx_t *cctx = get_my_cctx();
@@ -97,11 +98,11 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		memset((void *)shared_secret, 0, sizeof(shared_secret));
 		crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
 
-		char cipher_text[MSLEN + 1];
+		char cipher_text[SLEN + 1];
 
 		memset((void *)cipher_text, 0, sizeof(cipher_text));
 		memset((void *)plain_text, 0, sizeof(plain_text));
-		fromhex(cipher_text, MSLEN, 16, msg.cipher_text);
+		fromhex(cipher_text, SLEN, 16, msg.cipher_text);
 
 		uint8_t shared_secret_str[SLEN];
 		memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
@@ -113,10 +114,10 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		if (crypto_unlock
 		    (plain_text, shared_secret, nonce, mac,
 		     cipher_text, strlen(cipher_text))) {
-			printf("error: agrelay cannot decrypt\n");
+			printf("error: agrelay cannot decrypt len %d %s\n", mlen, message);
 			return;
 		}
-		printf("agrelay decrypted: %s\n", plain_text);
+		printf("debug: agrelay decrypted: %s\n", plain_text);
 	}
 
 	char myaddr[MSLEN], srcaddr[MSLEN];
@@ -128,11 +129,15 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		pkt_data[6],
 		pkt_data[7], pkt_data[8], pkt_data[9], pkt_data[10],
 		pkt_data[11]);
-
+	printf("debug: MAC addresses myaddr %s srcaddr %s\n", myaddr, srcaddr);
 	memset(buffer, 0, sizeof(buffer));
 	sprintf(buffer, get_relay_template(), "input", get_id_seq(),
 		myaddr, msg.public_key, srcaddr, "0xdada", plain_text, "");
 
+	if (strlen(buffer) > 2000) { // XXX
+		printf("error: UDP message to long to relay %d\n",strlen(buffer));
+		return;
+	}
 	int n;
 	n = sendto(di->sockfd, (const char *)buffer, strlen(buffer),
 		   0, (const struct sockaddr *)&di->servaddr,
@@ -142,7 +147,7 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		print_error("sendto failed to forward to Go");
 		return;
 	}
-	//printf("relay forwarded %d bytes, %s\n", n, buffer);
+	//printf("debug: relay forwarded %d bytes, %s\n", n, buffer);
 }
 
 int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
@@ -151,7 +156,11 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 
 	memset((void *)buffer, 0, sizeof(buffer));
 
-	//printf("plain_text %s\n", plain_text);
+	if (strlen(plain_text) >= SLEN) {
+		printf("error: plain_text too long %d\n",strlen(plain_text));
+		return -1;
+	}
+	//printf("debug: plain_text %s\n", plain_text);
 	crypto_ctx_t *cctx = get_my_cctx();
 
 	char dstaddrbytes[7];
@@ -171,7 +180,7 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 		printf("error: sending plain msg\n");
 		return -1;
 	}
-	/* printf("sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
+	/* printf("debug: sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
 	printf
 	    ("header %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
 	     buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,

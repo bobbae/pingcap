@@ -46,7 +46,7 @@ crypto_ctx_t *get_my_cctx()
 
 int fexit(int code)
 {
-	printf("\nexit: exiting with code %d\n", code);
+	printf("\ninfo: exiting with code %d\n", code);
 	fflush(stderr);
 	fflush(stdout);
 	exit(code);
@@ -139,7 +139,7 @@ int tohex(char *numbers, int numlen, int base, char *outbuf)
 	}
 
 	outbuf[i] = 0;
-	//printf("tohex: returning %s\n", outbuf);
+	//printf("debug: tohex returning %s\n", outbuf);
 	return i;
 }
 
@@ -174,7 +174,7 @@ int fromhex(char *numbers, int numlen, int base, char *inbuf)
 				     j, numlen);
 				return -1;
 			}
-			//printf("%d %.2X\n",j,val&0xff);
+			//printf("debug: fromhex %d %.2X\n",j,val&0xff);
 			numbers[j++] = val & 0xff;
 
 			val = 0;
@@ -237,13 +237,17 @@ int encrypt_send(char *myaddr, char *dstaddr, char *peer_pub, char *msgtype,
 int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 			char *plain_text, char *extra)
 {
-	char cipher_text[MSLEN + 1], cipher_text_str[MSLEN + 1];
+	char cipher_text[SLEN + 1], cipher_text_str[SLEN + 1];
 	crypto_ctx_t *cctx = get_my_cctx();
 	uint8_t peer_public_key[KSLEN];
 
-	/* printf("encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",
+	/* printf("debug: encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",
 	       msgtype, peer_pub, plain_text); */
 
+	if (strlen(plain_text) >= SLEN){
+		printf("error: cannot encrypt plain text too long %d\n",strlen(plain_text));
+		return -1;
+	}
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
 
 	uint8_t shared_secret[KSLEN];
@@ -253,7 +257,7 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
 	tohex(shared_secret, KSLEN, 16, shared_secret_str);
 
-	//printf("encrypting with shared_secret %s peer_pub %s\n", shared_secret_str, peer_public_key);
+	//printf("debug: encrypting with shared_secret %s peer_pub %s\n", shared_secret_str, peer_public_key);
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)cipher_text_str, 0, sizeof(cipher_text_str));
@@ -261,10 +265,11 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	crypto_lock(cctx->mac, cipher_text, shared_secret,
 		    cctx->nonce, plain_text, strlen(plain_text));
 	fill_str(cctx);
-	//printf("plain_text %d %s\n", (int)strlen(plain_text), plain_text);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	//printf("cipher_text_str %d %s\n", (int)strlen(cipher_text_str), cipher_text_str);
+	printf("debug: encrypting plain_text %d %s cipher_text_str %d %s\n", 
+		strlen(plain_text), plain_text,
+		strlen(cipher_text_str), cipher_text_str);
 
 	char *bp = &buffer[14];
 	sprintf(bp, (char *)get_msg_template(), msgtype, get_id_seq(),
@@ -276,7 +281,7 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 		printf("error: sending encrypted msg\n");
 		return -1;
 	}
-	printf("sent encrypted msg %d, %s\n", strlen(bp)+14, bp);
+	printf("debug: sent encrypted msg %d, %s\n", strlen(bp)+14, bp); 
 	return 1;
 }
 
@@ -287,8 +292,9 @@ int json_parse(char *instr, message_t * msg)
 	jsmn_parser p;
 	jsmntok_t t[128];	/* XXX max 128 tokens */
 
-	//printf("parsing json %s\n", instr);
+	//printf("debug: parsing json %s\n", instr);
 	jsmn_init(&p);
+	
 	r = jsmn_parse(&p, instr, strlen(instr), t, sizeof(t) / sizeof(t[0]));
 	if (r < 0) {
 		printf("error: failed to parse JSON: %d on %s\n", r, instr);
@@ -309,14 +315,14 @@ int json_parse(char *instr, message_t * msg)
 			if (slen < MSLEN) {
 				strncpy(msg->type, instr + t[i].start, slen);
 			}
-			//printf("msgtype %s\n", msg->type);
+			//printf("debug: json_parse msgtype %s\n", msg->type);
 		} else if (jsoneq(instr, &t[i], "id") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < MSLEN) {
 				strncpy(msg->id, instr + t[i].start, slen);
 			}
-			//printf("id %s\n", msg->id);                                   
+			//printf("debug:  json_parse id %s\n", msg->id);                                   
 		} else if (jsoneq(instr, &t[i], "uniqueId") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -324,7 +330,7 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->unique_id, instr + t[i].start,
 					slen);
 			}
-			//printf("uniqueId %s\n", msg->unique_id);
+			//printf("debug: json_parse uniqueId %s\n", msg->unique_id);
 		} else if (jsoneq(instr, &t[i], "signature") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -332,7 +338,7 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->signature, instr + t[i].start,
 					slen);
 			}
-			//printf("signature %s\n", msg->signature);
+			//printf("debug: json_parse signature %s\n", msg->signature);
 		} else if (jsoneq(instr, &t[i], "signaturePublicKey") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -340,7 +346,7 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->signature_public_key,
 					instr + t[i].start, slen);
 			}
-			//printf("signature_public_key %s\n", msg->signature_public_key);
+			//printf("debug: signature_public_key %s\n", msg->signature_public_key);
 		} else if (jsoneq(instr, &t[i], "publicKey") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
@@ -348,44 +354,44 @@ int json_parse(char *instr, message_t * msg)
 				strncpy(msg->public_key, instr + t[i].start,
 					slen);
 			}
-			//printf("publicKey %s\n", msg->public_key);
+			//printf("debug: publicKey %s\n", msg->public_key);
 		} else if (jsoneq(instr, &t[i], "mac") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->mac, instr + t[i].start, slen);
 			}
-			//printf("mac %s\n", msg->mac);
+			//printf("debug: mac %s\n", msg->mac);
 		} else if (jsoneq(instr, &t[i], "nonce") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->nonce, instr + t[i].start, slen);
 			}
-			//printf("nonce %s\n", msg->nonce);
+			//printf("debug: nonce %s\n", msg->nonce);
 		} else if (jsoneq(instr, &t[i], "cipherText") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
-			if (slen < PLEN) {
+			if (slen < SLEN) {
 				strncpy(msg->cipher_text, instr + t[i].start,
 					slen);
 			}
-			//printf("cipher_text %s\n", msg->cipher_text);
+			//printf("debug: cipher_text %s\n", msg->cipher_text);
 		} else if (jsoneq(instr, &t[i], "extra") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
 			if (slen < PLEN) {
 				strncpy(msg->extra, instr + t[i].start, slen);
 			}
-			//printf("extra %s\n", msg->extra);
+			//printf("debug: extra %s\n", msg->extra);
 		} else if (jsoneq(instr, &t[i], "plainText") == 0) {
 			i++;
 			slen = t[i].end - t[i].start;
-			if (slen < PLEN) {
+			if (slen < SLEN) {
 				strncpy(msg->plain_text, instr + t[i].start,
 					slen);
 			}
-			//printf("extra %s\n", msg->extra);
+			//printf("debug: extra %s\n", msg->extra);
 		} else {
 			printf("error: unexpected JSON key: %.*s\n",
 			       t[i].end - t[i].start, instr + t[i].start);
@@ -428,7 +434,7 @@ void fill_str(crypto_ctx_t * cctx)
 	tohex(cctx->nonce, NONCE_LEN, 16, cctx->nonce_str);
 
 	/* printf
-	   ("filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
+	   ("debug: filled unique_id_str %s signature %s signature_public_key %s public_key %s mac %s nonce %s\n",
 	   cctx->unique_id_str, cctx->signature_str,
 	   cctx->signature_public_key_str, cctx->public_key_str,
 	   cctx->mac_str, cctx->nonce_str);
@@ -440,12 +446,12 @@ int parse_msg(char *buffer, message_t * msg)
 	if (!buffer || !msg)
 		return -1;
 
-	//printf("parsing msg %s\n", buffer);
+	//printf("debug: parsing msg %s\n", buffer);
 
 	memset((void *)msg, 0, sizeof(*msg));
 
 	if (json_parse(buffer, msg) < 0) {
-		//printf("cannot parse message\n");
+		printf("error: cannot parse json message\n");
 		return -3;
 	}
 
@@ -468,7 +474,7 @@ int verify_signature(message_t * msg)
 		printf("error: signature is corrupt\n");
 		return -9;
 	}
-	//printf("signature is verified\n");
+	//printf("debug: signature is verified\n");
 	return 1;
 }
 
@@ -547,7 +553,8 @@ char *getmac(char *name)
 		return mac_addr_buf;
 	IP_ADAPTER_INFO *pa = adapter_info;
 	while (pa) {
-		if (pa->Type == MIB_IF_TYPE_ETHERNET &&
+		//printf("debug: type %d name '%s' '%s'\n",pa->Type, name, pa->AdapterName);
+		if (/* (pa->Type == MIB_IF_TYPE_ETHERNET || pa->Type == IF_TYPE_IEEE80211) && */
 		    strcmp(pa->AdapterName, name) == 0) {
 			mac_addr_buf[0] = pa->Address[0];
 			mac_addr_buf[1] = pa->Address[1];
@@ -555,12 +562,12 @@ char *getmac(char *name)
 			mac_addr_buf[3] = pa->Address[3];
 			mac_addr_buf[4] = pa->Address[4];
 			mac_addr_buf[5] = pa->Address[5];
-			//printf("%s %s %s\n",pa->AdapterName, pa->Description,mac_addr_buf);
 			return mac_addr_buf;
 		}
 		pa = pa->Next;
 	}
-	return mac_addr_buf;
+	printf("debug: getmac adapter %s not found\n",name);
+	exit(1);
 #endif
 #ifdef LINUX
 	struct ifreq s;
@@ -570,8 +577,10 @@ char *getmac(char *name)
 	int res = ioctl(fd, SIOCGIFHWADDR, &s);
 	close(fd);
 
-	if (res != 0)
-		return mac_addr_buf;
+	if (res != 0){
+		printf("debug: getmac interface %s not found\n",name);
+		exit(1);
+	}
 
 	mac_addr_buf[0] = s.ifr_addr.sa_data[0];
 	mac_addr_buf[1] = s.ifr_addr.sa_data[1];
@@ -579,6 +588,7 @@ char *getmac(char *name)
 	mac_addr_buf[3] = s.ifr_addr.sa_data[3];
 	mac_addr_buf[4] = s.ifr_addr.sa_data[4];
 	mac_addr_buf[5] = s.ifr_addr.sa_data[5];
+
 	return mac_addr_buf;
 #endif
 }
@@ -630,7 +640,7 @@ void fill_ether_header(char *packet, unsigned char *src, unsigned char *dst)
 {
 	/*
 	   printf
-	   ("fill ether header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
+	   ("debug: fill_ether_header: dst %02x:%02x:%02x:%02x:%02x:%02x  src %02x:%02x:%02x:%02x:%02x:%02x\n",
 	   dst[0], dst[1], dst[2], dst[3], dst[4], dst[5], src[0], src[1],
 	   src[2], src[3], src[4], src[5]);
 	 */

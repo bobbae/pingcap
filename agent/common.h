@@ -23,8 +23,8 @@ typedef struct {
 	uint8_t public_key[PLEN + 1];
 	uint8_t mac[PLEN + 1];
 	uint8_t nonce[PLEN + 1];
-	uint8_t cipher_text[PLEN + 1];
-	uint8_t plain_text[PLEN + 1];
+	uint8_t cipher_text[SLEN + 1];
+	uint8_t plain_text[SLEN + 1];
 	uint8_t extra[PLEN + 1];
 } message_t;
 

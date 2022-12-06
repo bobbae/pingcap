@@ -42,6 +42,7 @@ typedef unsigned char u_char;
 #include "pcap.h"
 #include "monocypher.h"
 #include "common.h"
+#include "b64.h"
 
 /* This implementation uses pcap but it is for portability and
  demo purpose.  On systems that are limited there may not be pcap.
@@ -147,14 +148,16 @@ int send_hello_packet()
 			  (unsigned char *)src_macaddr);
 	fill_hello(packet + 14);
 
-	if (pcap_sendpacket
-	    (get_adhandle(), (const u_char *)packet,
-	     14 + strlen(packet + 14)) != 0) {
+	int plen = 14 + strlen(packet+14);
+	if (plen >= 1500) {
+		printf("error: packet too big %d\n",plen);
+	}
+	if (pcap_sendpacket(get_adhandle(), (const u_char *)packet,	plen) != 0) {
 		printf("error: sending hello packet\n");
 		return -1;
 	}
-	printf("sent HELLO packet %d, %s\n", strlen(packet + 14) + 14,
-	       packet + 14); 
+	printf("debug: sent HELLO packet %d, %s\n", strlen(packet + 14) + 14,
+	       packet + 14);  
 	return 1;
 }
 
@@ -164,7 +167,7 @@ int handle_command(char *packet, char *msgtype, char *peer_public_key, char *cmd
 	char buffer[MAXLINE];
 	memset(buffer, 0 , sizeof(buffer));
 	memcpy(buffer, packet, 14);
-	//printf("handle_command msgtype %s %s\n",msgtype, cmd);
+	//printf("debug: handle_command msgtype %s %s\n",msgtype, cmd);
 
 	if (strcmp(cmd, "send hello") == 0) {
 		return send_hello_packet();
@@ -174,19 +177,21 @@ int handle_command(char *packet, char *msgtype, char *peer_public_key, char *cmd
 		char *extra = "extra info for bob is 123";
 		
 		/* send the message which will be encrypted and put into cipher_text */
-		//printf("encrypt_send_packet msgtype %s message %s\n", msgtype, message);
+		//printf("debug: encrypt_send_packet msgtype %s message %s\n", msgtype, message);
 		return encrypt_send_packet(buffer, peer_public_key,
 						msgtype, "INFORMATION IS GOOD", extra);
 	}			
 	if (strcmp(msgtype, "cmd")==0) {
+		char *dec = b64_decode(cmd, strlen(cmd));
+		printf("debug: base64 decoded cmd %s\n", dec);
 #ifdef WIN32
-		FILE *fp = _popen(cmd, "r");
+		FILE *fp = _popen(dec, "r");
 #endif
 #ifdef LINUX
-		FILE *fp = popen(cmd, "r");
+		FILE *fp = popen(dec, "r");
 #endif
 		if (fp == 0) {
-			printf("popen error\n");
+			printf("error: popen\n");
 			return -1;
 		}
 		/*  TODO XXX do fgets() and return result as message */
@@ -196,7 +201,7 @@ int handle_command(char *packet, char *msgtype, char *peer_public_key, char *cmd
 #ifdef LINUX 
 		pclose(fp);
 #endif
-		printf("ran command %s\n", cmd);
+		printf("debug: ran command %s\n", dec);
 		
 		return 1;
 	}
@@ -205,7 +210,6 @@ int handle_command(char *packet, char *msgtype, char *peer_public_key, char *cmd
 	printf("error: unknown cmd %s\n", cmd);
 	return -1;
 }
-
 
 
 int handle_msg(char *packet, device_info_t * di)
@@ -229,7 +233,7 @@ int handle_msg(char *packet, device_info_t * di)
 
 	// presence of nonce or mac in the msg indicates encrypted content
 	if (strlen((const char *)msg.nonce) <= 0) {
-		/* printf("plain message text received type %s %s\n", msgtype,
+		/* printf("debug: plain message text received type %s %s\n", msgtype,
 		       msg.plain_text); */
 		/* Should handle in handle_command(). */
 		handle_command(packet, msgtype,(char *)msg.public_key, msg.plain_text, di);
@@ -250,27 +254,31 @@ int handle_msg(char *packet, device_info_t * di)
 	uint8_t shared_secret[KSLEN];
 	memset((void *)shared_secret, 0, sizeof(shared_secret));
 	crypto_x25519(shared_secret, cctx->secret_key, peer_public_key);
-	/* we skipped validating the signature but we should do it really 
+	
+	/* XXX we skipped validating the signature but we should do it really 
 	   call verify_signature() */
+	
 	uint8_t shared_secret_str[SLEN];
 	memset((void *)shared_secret_str, 0, sizeof(shared_secret_str));
 	tohex((char *)shared_secret, KSLEN, 16, (char *)shared_secret_str);
 
-	//printf("agclient: decrypting with shared_secret %s peer_pub %s\n", shared_secret_str, msg.public_key);
+	/* printf("debug: decrypting with shared_secret %s peer_pub %s\n", 
+		shared_secret_str, msg.public_key); */
 
-	char cipher_text[MSLEN + 1], plain_text[MSLEN + 1];
+	char cipher_text[SLEN + 1], plain_text[SLEN + 1];
 
 	memset((void *)cipher_text, 0, sizeof(cipher_text));
 	memset((void *)plain_text, 0, sizeof(plain_text));
-	fromhex((char *)cipher_text, MSLEN, 16, (char *)msg.cipher_text);
+	fromhex((char *)cipher_text, SLEN, 16, (char *)msg.cipher_text);
 
+	char *payload = packet+14;
 	if (crypto_unlock
 	    ((uint8_t *) plain_text, shared_secret, nonce, mac,
 	     (uint8_t *) cipher_text, strlen(cipher_text))) {
-		printf("error: cannot decrypt\n");
+		printf("error: agclient cannot decrypt %d %s\n", strlen(payload),payload);
 		return -9;
 	}
-	printf("agclient decrypted: %s\n", plain_text);
+	printf("debug: agclient decrypted: %s from %d %s\n", plain_text, strlen(payload),payload);
 	
 	// handle decrypted msg and send packet reply
 	handle_command(packet, msgtype, (char *)msg.public_key, plain_text, di);
@@ -284,18 +292,26 @@ void packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	u_char packet[1500];
 	int i;
 	device_info_t *di = (device_info_t *) param;
-	// we are called here each time a packet is received by pcap
+	char buffer[MAXBUF];
+
+	// XXX terrible hack to clear buffer passed from pcap
+	printf("debug: caplen %d\n", header->caplen);
+	memset(buffer,0,sizeof(buffer)); // XXX
+	memcpy(buffer, pkt_data, header->caplen); // XXX
+	memset(pkt_data,0,header->caplen); // XXX
+	pkt_data = &buffer[0]; // XXX
+
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
 		return;
-
-	//printf("incoming packet %s\n", message);
 
 	int mlen = strlen((const char *)message);
 	if (mlen < MINMSG || mlen >= MAXLINE) {
 		printf("error: agclient bad size %d\n", mlen);
 		return;
 	}
+	//printf("debug: incoming packet len %d %s\n", mlen, message);
+
 	memset((void *)packet, 0, sizeof(packet));
 	strcpy((char *)(packet + 14), (const char *)message);
 	if (handle_msg((char *)packet, di) < 0) {

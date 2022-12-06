@@ -1,4 +1,7 @@
-default: agclient agserve dumqtt
+default: agclient 
+
+all: agclient dumqtt agserve
+
 CC=gcc
 ifeq ($(OS),Windows_NT)
 DEBUG=-g
@@ -22,17 +25,15 @@ agclient.o: agclient.c $(INCFILES)
 
 common.o: common.c $(INCFILES)
 
-agclient: agclient.o monocypher.o common.o 
-	gcc -o agclient$(EXE) agclient.o monocypher.o common.o  $(LIBS)
+agclient: agclient.o monocypher.o common.o b64.o
+	gcc -o agclient$(EXE) $^  $(LIBS)
 
-.PHONY:
-agserve: agrelay.c $(INCFILES)  agserve/agserv_linux.go agserve/agserv_windows.go
+.PHONY: agserve
+agserve: 
 	cd agserve; go build -a
 
-test: test.o common.o
-	gcc -o test$(EXE) test.o monocypher.o common.o $(LIBS)
+test: test.o common.o monocypher.o
+	gcc -o test$(EXE) $^ $(LIBS)
 
-OBJ1=dumqtt.o mqtt.o mqtt_pal.o
-
-dumqtt: $(OBJ1)
-	gcc  $(CFLAGS) -o dumqtt$(EXE) $(OBJ1)  $(LIBS)
+dumqtt: dumqtt.o mqtt.o mqtt_pal.o
+	gcc  $(CFLAGS) -o dumqtt$(EXE) $^  $(LIBS)
