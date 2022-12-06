@@ -49,10 +49,10 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 
 	// XXX terrible hack to clear buffer passed from pcap
 	printf("debug: caplen %d\n", header->caplen);
-	memset(buffer,0,sizeof(buffer)); // XXX
-	memcpy(buffer, pkt_data, header->caplen); // XXX
-	memset(pkt_data,0, header->caplen); // XXX
-	pkt_data = &buffer[0]; // XXX
+	memset(buffer, 0, sizeof(buffer));	// XXX
+	memcpy(buffer, pkt_data, header->caplen);	// XXX
+	memset(pkt_data, 0, header->caplen);	// XXX
+	pkt_data = &buffer[0];	// XXX
 
 	message = pkt_data + 14;
 	if (pkt_data[12] != 0xda || pkt_data[13] != 0xda)
@@ -64,8 +64,8 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		return;
 	}
 	/* printf("debug: agrelay packet_handler received message %d, %s\n", mlen,
-	       message); */
-	
+	   message); */
+
 	message_t msg;
 	if (parse_msg(message, &msg) < 0) {
 		printf("error: can't parse msg %d %s\n", mlen, message);
@@ -114,7 +114,8 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 		if (crypto_unlock
 		    (plain_text, shared_secret, nonce, mac,
 		     cipher_text, strlen(cipher_text))) {
-			printf("error: agrelay cannot decrypt len %d %s\n", mlen, message);
+			printf("error: agrelay cannot decrypt len %d %s\n",
+			       mlen, message);
 			return;
 		}
 		printf("debug: agrelay decrypted: %s\n", plain_text);
@@ -134,8 +135,9 @@ packet_handler(u_char * param, const struct pcap_pkthdr *header,
 	sprintf(buffer, get_relay_template(), "input", get_id_seq(),
 		myaddr, msg.public_key, srcaddr, "0xdada", plain_text, "");
 
-	if (strlen(buffer) > 2000) { // XXX
-		printf("error: UDP message to long to relay %d\n",strlen(buffer));
+	if (strlen(buffer) > 2000) {	// XXX
+		printf("error: UDP message to long to relay %d\n",
+		       strlen(buffer));
 		return;
 	}
 	int n;
@@ -157,7 +159,7 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 	memset((void *)buffer, 0, sizeof(buffer));
 
 	if (strlen(plain_text) >= SLEN) {
-		printf("error: plain_text too long %d\n",strlen(plain_text));
+		printf("error: plain_text too long %d\n", strlen(plain_text));
 		return -1;
 	}
 	//printf("debug: plain_text %s\n", plain_text);
@@ -181,13 +183,13 @@ int plain_send(char *dstaddr, char *msgtype, char *plain_text, char *extra)
 		return -1;
 	}
 	/* printf("debug: sent plain msg %d, %s\n", strlen(buffer + 14), buffer + 14);
-	printf
-	    ("header %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-	     buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
-	     buffer[3] & 0xff, buffer[4] & 0xff, buffer[5] & 0xff,
-	     buffer[6] & 0xff, buffer[7] & 0xff, buffer[8] & 0xff,
-	     buffer[9] & 0xff, buffer[10] & 0xff, buffer[11] & 0xff,
-	     buffer[12] & 0xff, buffer[13] & 0xff); */
+	   printf
+	   ("header %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+	   buffer[0] & 0xff, buffer[1] & 0xff, buffer[2] & 0xff,
+	   buffer[3] & 0xff, buffer[4] & 0xff, buffer[5] & 0xff,
+	   buffer[6] & 0xff, buffer[7] & 0xff, buffer[8] & 0xff,
+	   buffer[9] & 0xff, buffer[10] & 0xff, buffer[11] & 0xff,
+	   buffer[12] & 0xff, buffer[13] & 0xff); */
 
 	return 1;
 }

@@ -1413,10 +1413,10 @@ extern "C" {
 							    client,
 							    void **state),
 				 void *reconnect_state,
-				 void (*publish_response_callback)(void **state,
-								   struct
-								   mqtt_response_publish
-								   * publish));
+				 void(*publish_response_callback)(void **state,
+								  struct
+								  mqtt_response_publish
+								  * publish));
 
 /**
  * @brief Safely assign/reassign a socket and buffers to an new/existing client.

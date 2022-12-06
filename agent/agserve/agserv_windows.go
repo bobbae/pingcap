@@ -38,7 +38,6 @@ type Message struct {
 	Extra         string `json:"extra"`
 }
 
-
 var cmdChan chan string
 
 func main() {
@@ -73,16 +72,16 @@ func main() {
 			os.Exit(1)
 		}
 		defer sock.Close()
-        fmt.Println("debug: listening UDP at ", udpAddr)
+		fmt.Println("debug: listening UDP at ", udpAddr)
 		buffer := make([]byte, 10000)
 		for {
-            //fmt.Println("debug: Waiting for UDP input")
+			//fmt.Println("debug: Waiting for UDP input")
 			rlen, _, err := sock.ReadFrom(buffer)
 			if err != nil {
 				fmt.Println("error: UDP read error", err)
 				continue
 			}
-            fmt.Println("debug: UDP read bytes", rlen, string(buffer[:rlen]))
+			fmt.Println("debug: UDP read bytes", rlen, string(buffer[:rlen]))
 
 			var message Message
 
@@ -90,7 +89,7 @@ func main() {
 				fmt.Println("error: can't parse json message", string(buffer[:rlen]))
 				continue
 			}
-            //fmt.Println("debug: add to devList message", message)
+			//fmt.Println("debug: add to devList message", message)
 			devList.Store(message.PeerPublicKey, message) // XXX pretender with stolen ID may inject a message?
 		}
 	}()
@@ -103,33 +102,33 @@ func main() {
 		defer wg.Done()
 		var cstr *C.char = C.CString(*address)
 
-        fmt.Println("debug: Calling C relay")
+		fmt.Println("debug: Calling C relay")
 
 		C.run_relay(C.int(*port), C.int(*devNum), cstr)
 
-        fmt.Println("debug: Finished C relay. Should not happen!")
+		fmt.Println("debug: Finished C relay. Should not happen!")
 		defer C.free(unsafe.Pointer(cstr))
 	}()
 
-	ticker := time.NewTicker(time.Duration(*delay * 1000) * time.Millisecond)
+	ticker := time.NewTicker(time.Duration(*delay*1000) * time.Millisecond)
 	done := make(chan bool)
 
 	go func() {
 		for {
 			select {
 			case <-done:
-                fmt.Println("debug: timed sender done")
+				fmt.Println("debug: timed sender done")
 				return
 			case <-ticker.C:
 				//fmt.Println("debug: ticker")
 				// XXX do some book keeping TODO
 			case inCmd := <-cmdChan:
 				numSent := 0
-				fmt.Println("inCmd",inCmd)
+				fmt.Println("inCmd", inCmd)
 				// send ping to each known client that
 				// has sent us a hello in the past
 				devList.Range(func(k, v interface{}) bool {
-                    //fmt.Println("debug: devList kv", k, v)
+					//fmt.Println("debug: devList kv", k, v)
 					numSent++
 					if inCmd != "" {
 						fmt.Println("debug: inCmd", inCmd)
@@ -142,16 +141,16 @@ func main() {
 						sendHello()
 						return true
 					}
-					if strings.HasPrefix(inCmd, "!")  {
+					if strings.HasPrefix(inCmd, "!") {
 						inCmd = inCmd[1:]
 						sEnc := base64.StdEncoding.EncodeToString([]byte(inCmd))
-                        fmt.Println("debug: sEnc", sEnc)
+						fmt.Println("debug: sEnc", sEnc)
 						sendMessage(v.(Message), "cmd", sEnc, "some extra")
 						return true
-					} 
+					}
 					return true
 				})
-                //fmt.Println("debug: numSent",numSent)
+				//fmt.Println("debug: numSent",numSent)
 			}
 		}
 	}()
@@ -165,7 +164,7 @@ func main() {
 		//  form POST to  get user command to send to agent
 		http.HandleFunc("/cli", handleCommand)
 		address := ":9090"
-        fmt.Println("info: HTTP serving at", address)
+		fmt.Println("info: HTTP serving at", address)
 
 		err := http.ListenAndServe(address, nil) // setting listening port
 		if err != nil {
@@ -178,7 +177,7 @@ func main() {
 	ticker.Stop()
 	done <- true
 
-    fmt.Println("info: program exit")
+	fmt.Println("info: program exit")
 }
 
 func handleCommand(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +190,7 @@ func handleCommand(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cmdChan <- cmdLine
-        fmt.Println("debug: handling POST command", cmdLine)
+		fmt.Println("debug: handling POST command", cmdLine)
 	}
 
 	t, _ := template.ParseFiles("cli.template")
@@ -199,7 +198,7 @@ func handleCommand(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendMessage(m Message, mtype string, msg string, exmsg string) {
-    fmt.Println("debug: sending message", mtype, msg, exmsg)
+	fmt.Println("debug: sending message", mtype, msg, exmsg)
 	var myaddr *C.char = C.CString(m.MyEthAddr)
 	var peerPub *C.char = C.CString(m.PeerPublicKey)
 	var dstaddr *C.char = C.CString(m.SrcEthAddr)
@@ -218,7 +217,7 @@ func sendMessage(m Message, mtype string, msg string, exmsg string) {
 }
 
 func sendHello() {
-    fmt.Println("debug: send hello")
+	fmt.Println("debug: send hello")
 	var dstaddr *C.char = C.CString("ff:ff:ff:ff:ff:ff")
 	var msgtype *C.char = C.CString("scan")
 	var plainText *C.char = C.CString("send hello") // XXXCMD

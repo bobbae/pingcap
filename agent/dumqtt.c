@@ -22,13 +22,14 @@ void print_help(char *name)
 {
 	printf("Usage: %s flags\n", name);
 	printf("-h print help\n");
-	printf("-a address   specify IP address of the server (test.mosquitto.org)\n");
+	printf
+	    ("-a address   specify IP address of the server (test.mosquitto.org)\n");
 	printf("-p port      specify port of the server (1883)\n");
 	printf("-t topic     specify topic (datetime)\n");
 	printf("-m message   message to send (hello)\n");
 	printf("-d delay     specify delay in seconds between messages (0)\n");
 	printf("-l           continuous loop\n");
-	
+
 	fflush(stdout);
 	exit(1);
 }
@@ -36,17 +37,16 @@ void print_help(char *name)
 int main(int argc, const char *argv[])
 {
 	char *message = "hello";
-	char *topic ="datetime";
+	char *topic = "datetime";
 	int loopit = 0;
 	int delay = 0;
 
 	int i = 1;
 	int port = 1883;
-	char *address =  "test.mosquitto.org";
+	char *address = "test.mosquitto.org";
 
 	setvbuf(stdout, NULL, _IONBF, 0);
 	setvbuf(stderr, NULL, _IONBF, 0);
-
 
 	while (i < argc) {
 		if (strcmp(argv[i], "-h") == 0) {
@@ -79,11 +79,9 @@ int main(int argc, const char *argv[])
 		i++;
 	}
 
-	
 	printf
 	    ("Will connect to MQTT broker at addr %s at port %d on topic %s\n",
 	     address, port, topic);
-
 
 #ifdef WIN32
 	WSADATA wsaData;
@@ -143,14 +141,16 @@ int main(int argc, const char *argv[])
 	mqtt_subscribe(&client, topic, 0);
 	printf("subscribed to the topic %s\n", topic);
 	do {
-        if (strcmp(message, "none") != 0) {
-            mqtt_publish(&client, topic, message, strlen(message) + 1, MQTT_PUBLISH_QOS_0);
+		if (strcmp(message, "none") != 0) {
+			mqtt_publish(&client, topic, message,
+				     strlen(message) + 1, MQTT_PUBLISH_QOS_0);
 
-            if (client.error != MQTT_OK) {
-                fprintf(stderr, "error: %s\n", mqtt_error_str(client.error));
-                exit(1);
-            }
-        }
+			if (client.error != MQTT_OK) {
+				fprintf(stderr, "error: %s\n",
+					mqtt_error_str(client.error));
+				exit(1);
+			}
+		}
 		mqtt_sync(&client);
 		sleep(delay);
 	} while (loopit);

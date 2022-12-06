@@ -242,10 +242,11 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	uint8_t peer_public_key[KSLEN];
 
 	/* printf("debug: encrypt_send_packet msgtype %s peer_pub %s plain_text %s\n",
-	       msgtype, peer_pub, plain_text); */
+	   msgtype, peer_pub, plain_text); */
 
-	if (strlen(plain_text) >= SLEN){
-		printf("error: cannot encrypt plain text too long %d\n",strlen(plain_text));
+	if (strlen(plain_text) >= SLEN) {
+		printf("error: cannot encrypt plain text too long %d\n",
+		       strlen(plain_text));
 		return -1;
 	}
 	fromhex(peer_public_key, KSLEN, 16, peer_pub);
@@ -267,9 +268,9 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 	fill_str(cctx);
 
 	tohex(cipher_text, strlen(plain_text), 16, cipher_text_str);
-	printf("debug: encrypting plain_text %d %s cipher_text_str %d %s\n", 
-		strlen(plain_text), plain_text,
-		strlen(cipher_text_str), cipher_text_str);
+	printf("debug: encrypting plain_text %d %s cipher_text_str %d %s\n",
+	       strlen(plain_text), plain_text,
+	       strlen(cipher_text_str), cipher_text_str);
 
 	char *bp = &buffer[14];
 	sprintf(bp, (char *)get_msg_template(), msgtype, get_id_seq(),
@@ -281,7 +282,7 @@ int encrypt_send_packet(char *buffer, char *peer_pub, char *msgtype,
 		printf("error: sending encrypted msg\n");
 		return -1;
 	}
-	printf("debug: sent encrypted msg %d, %s\n", strlen(bp)+14, bp); 
+	printf("debug: sent encrypted msg %d, %s\n", strlen(bp) + 14, bp);
 	return 1;
 }
 
@@ -294,7 +295,7 @@ int json_parse(char *instr, message_t * msg)
 
 	//printf("debug: parsing json %s\n", instr);
 	jsmn_init(&p);
-	
+
 	r = jsmn_parse(&p, instr, strlen(instr), t, sizeof(t) / sizeof(t[0]));
 	if (r < 0) {
 		printf("error: failed to parse JSON: %d on %s\n", r, instr);
@@ -554,8 +555,8 @@ char *getmac(char *name)
 	IP_ADAPTER_INFO *pa = adapter_info;
 	while (pa) {
 		//printf("debug: type %d name '%s' '%s'\n",pa->Type, name, pa->AdapterName);
-		if (/* (pa->Type == MIB_IF_TYPE_ETHERNET || pa->Type == IF_TYPE_IEEE80211) && */
-		    strcmp(pa->AdapterName, name) == 0) {
+		if (		/* (pa->Type == MIB_IF_TYPE_ETHERNET || pa->Type == IF_TYPE_IEEE80211) && */
+			   strcmp(pa->AdapterName, name) == 0) {
 			mac_addr_buf[0] = pa->Address[0];
 			mac_addr_buf[1] = pa->Address[1];
 			mac_addr_buf[2] = pa->Address[2];
@@ -566,7 +567,7 @@ char *getmac(char *name)
 		}
 		pa = pa->Next;
 	}
-	printf("debug: getmac adapter %s not found\n",name);
+	printf("debug: getmac adapter %s not found\n", name);
 	exit(1);
 #endif
 #ifdef LINUX
@@ -577,8 +578,8 @@ char *getmac(char *name)
 	int res = ioctl(fd, SIOCGIFHWADDR, &s);
 	close(fd);
 
-	if (res != 0){
-		printf("debug: getmac interface %s not found\n",name);
+	if (res != 0) {
+		printf("debug: getmac interface %s not found\n", name);
 		exit(1);
 	}
 
@@ -674,5 +675,5 @@ void init_wsock()
 
 int run_cmd()
 {
-	
+
 }

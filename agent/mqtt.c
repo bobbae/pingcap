@@ -126,7 +126,7 @@ enum MQTTErrors mqtt_init(struct mqtt_client *client,
 							    mqtt_response_publish
 							    * publish))
 {
-	if(client == NULL || sendbuf == NULL || recvbuf == NULL) {
+	if (client == NULL || sendbuf == NULL || recvbuf == NULL) {
 		return MQTT_ERROR_NULLPTR;
 	}
 
@@ -162,10 +162,10 @@ enum MQTTErrors mqtt_init(struct mqtt_client *client,
 void mqtt_init_reconnect(struct mqtt_client *client,
 			 void (*reconnect)(struct mqtt_client *, void **),
 			 void *reconnect_state,
-			 void(*publish_response_callback)(void **state,
-							  struct
-							  mqtt_response_publish
-							  * publish))
+			 void (*publish_response_callback)(void **state,
+							   struct
+							   mqtt_response_publish
+							   * publish))
 {
 	/* initialize mutex */
 	MQTT_PAL_MUTEX_INIT(&client->mutex);
@@ -663,8 +663,8 @@ ssize_t __mqtt_recv(struct mqtt_client *client)
 		    mqtt_unpack_response(&response,
 					 client->recv_buffer.mem_start,
 					 (size_t)(client->recv_buffer.curr -
-						  client->recv_buffer.
-						  mem_start));
+						  client->
+						  recv_buffer.mem_start));
 
 		if (consumed < 0) {
 			client->error = (enum MQTTErrors)consumed;
@@ -751,8 +751,8 @@ ssize_t __mqtt_recv(struct mqtt_client *client)
 			/* stage response, none if qos==0, PUBACK if qos==1, PUBREC if qos==2 */
 			if (response.decoded.publish.qos_level == 1) {
 				rv = __mqtt_puback(client,
-						   response.decoded.publish.
-						   packet_id);
+						   response.decoded.
+						   publish.packet_id);
 				if (rv != MQTT_OK) {
 					client->error = (enum MQTTErrors)rv;
 					mqtt_recv_ret = rv;
@@ -768,8 +768,8 @@ ssize_t __mqtt_recv(struct mqtt_client *client)
 				}
 
 				rv = __mqtt_pubrec(client,
-						   response.decoded.publish.
-						   packet_id);
+						   response.decoded.
+						   publish.packet_id);
 				if (rv != MQTT_OK) {
 					client->error = (enum MQTTErrors)rv;
 					mqtt_recv_ret = rv;
