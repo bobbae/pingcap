@@ -1,15 +1,40 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
-    <title>Agent CLI</title>
+        <title>Agent CLI</title>
+        <link
+        rel="stylesheet" href=
+    "https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css"
+        />
+        <script src=
+    "https://use.fontawesome.com/releases/v5.15.4/js/all.js">
+        </script>
     </head>
     <body>
-        <h1>Agent CLI</h1>
+        <h1 class="title has-text-centered mt-5 has-text-success">
+            Agent CLI
+        </h1>
+        <div class="container box p-6
+                    has-background-light">
 
-        <div style="margin-left: 50px; margin-top: 50px" >
+            <h2 class="subtitle has-text-centered">
+                Command Form
+            </h2>
+
             <form action="/cli" method="post">
-                Command:<input type="text" name="command" style="width: 50%">
-                <input type="submit" value="command">
+                <div class="field" >
+                    <label class="label">Command</label>
+                    <div class="control">
+                        <input class="input" type="text" placeholder="Enter your command" name="command"  />
+                    </div>
+                </div>
+                <div class="field" >
+                    <div class="control">
+                        <input type="submit" value="Submit" />
+                    </div>
+                </div>
             </form>
         </div>
     </body>
 </html>
+
