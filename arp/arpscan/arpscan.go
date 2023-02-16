@@ -51,13 +51,6 @@ func main() {
 
 	var wg sync.WaitGroup
 	for _, iface := range ifaces {
-		if iface.Name == "lo" ||
-			strings.HasPrefix(iface.Name, "br-") ||
-			strings.HasPrefix(iface.Name, "docker") {
-			fmt.Println("skip scanning", iface)
-			continue
-		}
-
 		if SkipIf(iface) {
 			fmt.Println("skipping interface", iface)
 			continue
