@@ -120,11 +120,13 @@ func scan(iface *net.Interface, delay int) error {
 	defer close(stop)
 
 	// Write our scan packets out to the handle.
-	if err := writeARP(handle, iface, addr); err != nil {
-		log.Printf("error writing packets on %v: %v", iface.Name, err)
-		return err
+	for i := 0; i < delay; i++ {
+		if err := writeARP(handle, iface, addr); err != nil {
+			log.Printf("error writing packets on %v: %v", iface.Name, err)
+			return err
+		}
+		time.Sleep(1 * time.Second)
 	}
-	time.Sleep(time.Duration(delay) * time.Second)
 
 	fmt.Println("exiting", Devices, len(Devices))
 	return nil
