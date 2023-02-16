@@ -16,8 +16,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"flag"
-	"fmt"
-	"log"
 	"net"
 	"strings"
 	"sync"
@@ -26,21 +24,29 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/qeof/q"
 )
 
 type Device struct {
-	IpAddr net.IP
-	HwAddr net.HardwareAddr
+	IpAddr    net.IP           `json:"ipaddr"`
+	HwAddr    net.HardwareAddr `json:"hwaddr"`
+	Timestamp string           `json:"timestamp"`
+	RespCount int              `json:"respcount"`
 }
 
 var Devices map[string]Device
 
 func init() {
+	q.O = "stderr"
+	q.P = ".*"
 	Devices = make(map[string]Device)
 }
 
 func main() {
-	delay := flag.Int("d", 10, "seconds to wait for ARP responses")
+	delay := flag.Int("d", 5, "seconds between ARP requests")
+	timeout := flag.Int("t", 30, "seconds to wait")
+	flag.StringVar(&q.O, "O", "stderr", "debug log output")
+	flag.StringVar(&q.P, "P", ".*", "debug log pattern")
 	flag.Parse()
 
 	// Get a list of all interfaces.
@@ -52,7 +58,6 @@ func main() {
 	var wg sync.WaitGroup
 	for _, iface := range ifaces {
 		if SkipIf(iface) {
-			fmt.Println("skipping interface", iface)
 			continue
 		}
 		wg.Add(1)
@@ -60,9 +65,10 @@ func main() {
 		// Start up a scan on each interface.
 		go func(iface net.Interface) {
 			defer wg.Done()
-			if err := scan(&iface, *delay); err != nil {
-				log.Printf("interface %v: %v", iface.Name, err)
+			if err := scan(&iface, *delay, *timeout); err != nil {
+				q.Q(iface, err)
 			}
+			q.Q(Devices, len(Devices))
 		}(iface)
 	}
 
@@ -71,17 +77,17 @@ func main() {
 	// it means all attempts to write have failed.
 	wg.Wait()
 
-	fmt.Println("scan complete")
+	q.Q("scan complete")
 }
 
 // scan scans an individual interface's local network for machines using ARP requests/replies.
 //
 // scan loops forever, sending packets out regularly.  It returns an error if
 // it's ever unable to write a packet.
-func scan(iface *net.Interface, delay int) error {
+func scan(iface *net.Interface, delay int, timeout int) error {
 	// We just look for IPv4 addresses, so try to find if the interface has one.
 	var addr *net.IPNet
-	fmt.Println("scan", *iface)
+	q.Q(iface.Name)
 	if addrs, err := iface.Addrs(); err != nil {
 		return err
 	} else {
@@ -105,7 +111,7 @@ func scan(iface *net.Interface, delay int) error {
 	} else if addr.Mask[0] != 0xff || addr.Mask[1] != 0xff {
 		return errors.New("mask means network is too large")
 	}
-	log.Printf("Using network range %v for interface %v", addr, iface.Name)
+	q.Q(addr, iface.Name)
 
 	// Open up a pcap handle for packet reads/writes.
 	handle, err := pcap.OpenLive(iface.Name, 65536, true, pcap.BlockForever)
@@ -119,16 +125,19 @@ func scan(iface *net.Interface, delay int) error {
 	go readARP(handle, iface, stop)
 	defer close(stop)
 
-	// Write our scan packets out to the handle.
-	for i := 0; i < delay; i++ {
-		if err := writeARP(handle, iface, addr); err != nil {
-			log.Printf("error writing packets on %v: %v", iface.Name, err)
-			return err
+	timeoutChan := time.After(time.Duration(timeout) * time.Second)
+	tickChan := time.Tick(time.Duration(delay) * time.Second)
+	for {
+		select {
+		case <-timeoutChan:
+			return nil
+		case <-tickChan:
+			if err := writeARP(handle, iface, addr); err != nil {
+				q.Q(iface.Name, err)
+				return err
+			}
 		}
-		time.Sleep(1 * time.Second)
 	}
-
-	fmt.Println("exiting", Devices, len(Devices))
 	return nil
 }
 
@@ -138,14 +147,15 @@ func scan(iface *net.Interface, delay int) error {
 func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 	src := gopacket.NewPacketSource(handle, layers.LayerTypeEthernet)
 	in := src.Packets()
-	fmt.Println("read arp", *iface)
+	var packet gopacket.Packet
 	for {
-		var packet gopacket.Packet
 		select {
 		case <-stop:
-			fmt.Println("stop ", *iface)
 			return
 		case packet = <-in:
+			if packet == nil {
+				continue
+			}
 			arpLayer := packet.Layer(layers.LayerTypeARP)
 			if arpLayer == nil {
 				continue
@@ -155,13 +165,20 @@ func readARP(handle *pcap.Handle, iface *net.Interface, stop chan struct{}) {
 				// This is a packet I sent.
 				continue
 			}
-			// Note:  we might get some packets here that aren't responses to ones we've sent,
-			// if for example someone else sends US an ARP request.  Doesn't much matter, though...
-			// all information is good information :)
-			dev := Device{IpAddr: net.IP(arp.SourceProtAddress), HwAddr: net.HardwareAddr(arp.SourceHwAddress)}
-
-			log.Printf("%s %v", iface.Name, dev)
-			Devices[dev.IpAddr.String()] = dev
+			ipaddr := net.IP(arp.SourceProtAddress)
+			hwaddr := net.HardwareAddr(arp.SourceHwAddress)
+			key := hwaddr.String()
+			dev, ok := Devices[key]
+			if !ok {
+				q.Q("new device", ipaddr.String(), hwaddr.String())
+				dev = Device{
+					IpAddr:    ipaddr,
+					HwAddr:    hwaddr,
+					Timestamp: time.Now().Format(time.RFC3339),
+				}
+			}
+			dev.RespCount++
+			Devices[key] = dev
 		}
 	}
 }
